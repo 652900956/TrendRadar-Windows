@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrendRadar 本地可视化配置编辑器</title>
+<style>
+/* ===== 全局浅色主题（复刻官方 sansan0 风格，离线无 CDN 依赖） ===== */
+*{box-sizing:border-box;}
+:root{
+  --blue:#3b82f6; --blue-d:#2563eb; --blue-l:#eff6ff; --green:#10b981;
+  --red:#ef4444; --purple:#8b5cf6; --amber:#f59e0b;
+  --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb; --gray-300:#d1d5db;
+  --gray-500:#6b7280; --gray-700:#374151; --gray-800:#1f2937; --gray-900:#111827;
+  --code-bg:#1e1e1e; --code-fg:#d4d4d4; --code-line:#6a9955;
+}
+html,body{height:100%;margin:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+  background:var(--gray-100);color:var(--gray-800);display:flex;flex-direction:column;overflow:hidden;}
+
+/* 顶部导航 */
+nav{background:#fff;border-bottom:1px solid var(--gray-200);flex-shrink:0;display:flex;align-items:center;
+  justify-content:space-between;padding:0 16px;height:56px;z-index:20;}
+.nav-title{font-weight:700;font-size:17px;color:var(--gray-900);display:flex;align-items:center;gap:10px;}
+.nav-title .ic{color:var(--blue);font-size:18px;}
+.nav-title small{color:var(--gray-500);font-weight:400;font-size:12px;margin-left:6px;}
+.privacy{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-500);
+  background:var(--gray-50);border:1px solid var(--gray-100);padding:5px 12px;border-radius:999px;}
+.privacy .dot{color:var(--green);}
+.nav-btns{display:flex;align-items:center;gap:10px;}
+.btn{font-family:inherit;font-size:13px;border-radius:6px;cursor:pointer;border:1px solid var(--gray-200);
+  background:#fff;color:var(--gray-700);padding:6px 12px;transition:.15s;}
+.btn:hover{border-color:var(--blue);color:var(--blue);}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.08);}
+.btn-primary:hover{background:var(--blue-d);border-color:var(--blue-d);color:#fff;}
+.btn-warn{background:var(--amber);color:#fff;border-color:var(--amber);font-weight:500;}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red);}
+.btn-sm{padding:4px 9px;font-size:12px;}
+
+/* 主区：左右分栏 */
+main{flex:1;display:flex;overflow:hidden;}
+/* 左：代码区 */
+.left{width:50%;display:flex;flex-direction:column;border-right:1px solid var(--gray-200);background:var(--code-bg);min-width:0;}
+/* 标签栏：可横向滚动（7+文件不溢出） */
+.tabbar{display:flex;align-items:center;background:#252526;border-bottom:1px solid #333;overflow-x:auto;overflow-y:hidden;flex-shrink:0;}
+.tabbar::-webkit-scrollbar{height:6px;}
+.tabbar::-webkit-scrollbar-thumb{background:#424242;border-radius:3px;}
+.tab{flex-shrink:0;padding:9px 16px;font-size:12px;font-weight:700;color:#888;cursor:pointer;border-bottom:2px solid transparent;
+  display:flex;align-items:center;gap:8px;background:transparent;border-top:none;border-left:none;border-right:none;white-space:nowrap;}
+.tab.active{color:#e6e6e6;border-bottom-color:var(--blue);}
+.tab .ic{font-size:13px;}
+.tab .saved{font-size:10px;color:#6b7280;}
+/* 代码滚动容器（负责滚动），内部两层叠加 */
+.codescroll{flex:1;position:relative;overflow:hidden;}
+.code-area{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;color:transparent;caret-color:var(--code-fg);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12.5px;line-height:1.65;
+  padding:14px 16px;outline:none;resize:none;z-index:2;white-space:pre;overflow:auto;}
+.code-back{position:absolute;inset:0;padding:14px 16px;margin:0;border:none;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-size:12.5px;line-height:1.65;white-space:pre;background:var(--code-bg);color:var(--code-fg);
+  pointer-events:none;z-index:1;overflow:hidden;}
+.code-back .cm{color:var(--code-line);}
+.codescroll::-webkit-scrollbar{width:10px;height:10px;}
+.codescroll::-webkit-scrollbar-track{background:#1e1e1e;}
+.codescroll::-webkit-scrollbar-thumb{background:#424242;border-radius:0;}
+.codescroll::-webkit-scrollbar-thumb:hover{background:#4f4f4f;}
+
+/* 右：表单区 */
+.right{flex:1;overflow-y:auto;padding:18px;background:var(--gray-50);min-width:0;}
+.right::-webkit-scrollbar{width:8px;}
+.right::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:4px;}
+.card{background:#fff;border:1px solid var(--gray-200);border-radius:8px;margin-bottom:14px;overflow:hidden;}
+.card-head{padding:11px 15px;font-weight:600;font-size:14px;color:var(--gray-900);border-bottom:1px solid var(--gray-100);
+  display:flex;align-items:center;gap:8px;background:#fff;cursor:pointer;}
+.card-head .card-title{flex:1;cursor:pointer;padding-right:12px;}
+.card-head .card-title:hover{color:var(--blue);}
+.card-head .tg{margin-left:auto;color:var(--gray-500);font-size:12px;transition:.2s;cursor:pointer;padding:4px 6px;border-radius:4px;}
+.card-head .tg:hover{background:var(--gray-100);color:var(--blue);}
+.card.collapsed .card-body{display:none;}
+.card.collapsed .tg{transform:rotate(-90deg);}
+.card-body{padding:14px 15px;}
+.field{margin-bottom:13px;}
+.field:last-child{margin-bottom:0;}
+.field>label{display:block;font-size:13px;font-weight:500;color:var(--gray-700);margin-bottom:5px;}
+.field .key{color:var(--gray-400);font-weight:400;font-size:11px;font-family:ui-monospace,monospace;}
+.field .hint{font-size:12px;color:var(--gray-500);margin-bottom:5px;line-height:1.5;}
+input[type=text],input[type=number],select,textarea.txt{width:100%;background:#fff;border:1px solid var(--gray-300);
+  border-radius:6px;color:var(--gray-800);padding:7px 10px;font-size:13px;font-family:inherit;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.12);}
+textarea.txt{font-family:ui-monospace,monospace;font-size:12.5px;min-height:130px;resize:vertical;line-height:1.6;}
+.row{display:flex;gap:12px;flex-wrap:wrap;}
+.row>.field{flex:1;min-width:160px;}
+.check{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;color:var(--gray-700);}
+.check input{width:16px;height:16px;accent-color:var(--blue);}
+.chip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;}
+.chip{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--gray-200);border-radius:6px;
+  padding:6px 9px;font-size:12px;color:var(--gray-700);}
+.chip.off{opacity:.45;background:var(--gray-50);}
+.chip input{width:15px;height:15px;accent-color:var(--blue);}
+.card-item{border:1px solid var(--gray-200);border-radius:8px;padding:12px;margin-bottom:10px;background:#fff;}
+.card-item .ci-head{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.card-item .ci-head .nm{font-weight:600;flex:1;font-size:13px;}
+.section-t{font-size:15px;font-weight:600;color:var(--blue);margin:4px 0 13px;display:flex;align-items:center;gap:8px;}
+.kw-block{border:1px solid var(--gray-200);border-radius:8px;margin-bottom:9px;background:#fff;overflow:hidden;}
+.kw-head{padding:9px 12px;background:var(--blue-l);font-weight:600;display:flex;gap:8px;align-items:center;font-size:13px;}
+.kw-head .en{color:var(--gray-500);font-weight:400;font-size:12px;}
+.kw-body{padding:10px 12px;}
+.tag{display:inline-flex;align-items:center;gap:5px;background:var(--gray-100);border:1px solid var(--gray-200);
+  border-radius:14px;padding:3px 10px;margin:3px;font-size:12px;color:var(--gray-700);}
+.tag .x{cursor:pointer;color:var(--red);font-weight:700;font-size:14px;line-height:1;}
+.add-btn{margin-top:6px;}
+.tl-block{display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:6px;font-size:12px;color:#fff;margin-bottom:7px;}
+.tl-push{background:var(--blue);} .tl-analyze{background:var(--purple);}
+.tl-both{background:#6366f1;} .tl-collect{background:#94a3b8;} .tl-silent{background:var(--gray-300);color:#333;}
+.note{font-size:12px;color:var(--gray-500);line-height:1.55;padding:8px 0;}
+.divider{height:1px;background:var(--gray-200);margin:16px 0;}
+.status-pill{font-size:11px;padding:3px 9px;border-radius:999px;font-weight:500;}
+.status-pill.ok{background:#dcfce7;color:#166534;}
+.status-pill.err{background:#fee2e2;color:#991b1b;}
+.status-pill.warn{background:#fef3c7;color:#92400e;}
+
+/* 弹窗 */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50;}
+.modal{background:#fff;border-radius:12px;padding:22px;max-width:540px;width:92%;max-height:86vh;overflow:auto;}
+.modal h3{margin:0 0 14px;font-size:16px;}
+.modal .mbtns{display:flex;gap:9px;justify-content:flex-end;margin-top:16px;}
+.modal textarea{height:280px;background:var(--code-bg);color:#d4d4d4;font-family:ui-monospace,monospace;font-size:12px;
+  border-radius:8px;border:0;padding:14px;width:100%;resize:vertical;}
+.insp-chip{display:inline-block;background:var(--blue-l);color:var(--blue-d);border:1px solid #bfdbfe;
+  border-radius:6px;padding:3px 10px;font-size:12px;margin:3px;cursor:pointer;}
+.insp-chip:hover{background:#dbeafe;}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-title"><i class="ic fa-solid fa-sliders"></i>TrendRadar
+    <small>本地可视化配置编辑器</small></div>
+  <div class="privacy"><i class="dot fa-solid fa-shield-halved"></i>纯本地页面 · 数据不出浏览器</div>
+  <div class="nav-btns">
+    <button class="btn" onclick="loadLocalFiles()"><i class="fa-solid fa-folder-open"></i> 加载本地文件</button>
+    <button class="btn btn-primary" onclick="copyCode()"><i class="fa-regular fa-copy"></i> 复制配置</button>
+    <button class="btn" onclick="downloadFile()"><i class="fa-solid fa-download"></i> 下载</button>
+  </div>
+</nav>
+
+<main>
+  <div class="left">
+    <div class="tabbar" id="tabbar"><!-- tabs 注入 --></div>
+    <div class="codescroll">
+      <pre class="code-back" id="backLayer"></pre>
+      <textarea class="code-area" id="codeArea" spellcheck="false"></textarea>
+    </div>
+  </div>
+  <div class="right" id="panel"><!-- 面板注入 --></div>
+</main>
+
+<input type="file" id="fileInput" multiple style="display:none" onchange="onFilesChosen(event)">
+<div class="mask" id="modalMask">
+  <div class="modal">
+    <h3><i class="fa-regular fa-copy"></i> 复制以下代码，粘贴回本地文件替换</h3>
+    <div class="note">替换前请先备份原文件（复制一份改名 .bak）。若下方状态为「格式错误」，请勿复制，先修正右侧或左侧。</div>
+    <textarea id="modalText" readonly></textarea>
+    <div class="mbtns">
+      <button class="btn btn-primary" onclick="copyModal()">复制到剪贴板</button>
+      <button class="btn" onclick="closeModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script src="js-yaml.min.js"></script>
+<script>
+/* ===== 内嵌你当前的真实配置（打开即见，无需先选文件） ===== */
+const EMBEDDED = {"config.yaml": "# ═══════════════════════════════════════════════════════════════\n#                    TrendRadar 配置文件\n#                      Version: 2.4.0\n# ═══════════════════════════════════════════════════════════════\n\n\n# 可视化配置编辑器地址: https://sansan0.github.io/TrendRadar/\n\n\n# ===============================================================\n# 1. 基础设置\n# ===============================================================\napp:\n  # 时区配置（影响所有时间显示、调度系统判断、数据存储）\n  # 常用时区：\n  #   - Asia/Shanghai (北京时间 UTC+8)\n  #   - America/New_York (美东时间 UTC-5/-4)\n  #   - Europe/London (伦敦时间 UTC+0/+1)\n  # 完整时区列表: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones\n  timezone: \"Asia/Shanghai\"\n  show_version_update: true           # 是否显示版本更新提示（true=显示, false=隐藏）\n\n\n# ===============================================================\n# 1.5 调度系统 —— 什么时间做什么事\n#\n# 通过 timeline.yaml 里定义的时间段来自动决定：\n#   - 什么时候推送通知\n#   - 什么时候做 AI 分析\n#   - 用什么报告模式\n#\n# 快速上手：选一个预设模板，改 preset 的值就行\n#\n#   always_on       → 全天候，有新增即推送\n#   morning_evening → 全天推送 + 晚间当日汇总（推荐）\n#   office_hours    → 工作日三段式（到岗→午间→收工），周末增量自由推\n#   night_owl       → 午后速览 + 深夜全天汇总\n#   custom          → 完全自定义，详见 timeline.yaml\n#\n# 详细时间线图请查看 config/timeline.yaml\n# ===============================================================\nschedule:\n  enabled: true                         # 是否启用调度系统（true=启用, false=关闭）\n  preset: \"morning_evening\"             # 预设模板名称（见上方说明）\n\n\n# ===============================================================\n# 2. 数据源 - 热榜平台\n#\n# 数据来源于 newsnow 开源项目: https://github.com/ourongxing/newsnow\n# 你可以自行部署 newsnow 并将 api_url 指向你自己的实例\n#\n# enabled: 是否启用热榜抓取（总开关）\n# api_url: 热榜数据 API 地址（可选，留空使用默认地址）\n# sources: 平台列表\n#   - id: 平台唯一标识（勿修改）\n#   - name: 显示名称（可自定义，修改后不影响运行）\n#   - expected_domain: 域名安全校验（可选，建议配置）\n#     填写主域名（如 baidu.com），自动匹配该域名及其所有子域名\n#     校验返回数据中的链接是否为 HTTPS 且域名匹配，不匹配时丢弃该平台数据并记录警告\n#     可有效防范链接劫持或数据篡改\n#     只要 api_url 不是你自己部署的实例，都推荐配置 expected_domain\n# ===============================================================\nplatforms:\n  enabled: true                         # 是否启用热榜平台抓取（true=启用, false=关闭）\n  api_url: \"\"                            # 热榜数据 API 地址（留空使用默认地址）\n                                        # 如果你自行部署了 newsnow，填入你的地址，如: https://your-domain.com/api/s\n  sources:\n    # ═══ 综合/社会 ═══\n    - id: \"toutiao\"\n      name: \"今日头条\"\n      expected_domain: \"toutiao.com\"\n    - id: \"baidu\"\n      name: \"百度热搜\"\n      expected_domain: \"baidu.com\"\n    - id: \"thepaper\"\n      name: \"澎湃新闻\"\n      expected_domain: \"thepaper.cn\"\n    - id: \"ifeng\"\n      name: \"凤凰网\"\n      expected_domain: \"ifeng.com\"\n    - id: \"tencent-hot\"\n      name: \"腾讯新闻\"\n      expected_domain: \"qq.com\"\n    - id: \"zaobao\"\n      name: \"联合早报\"\n      expected_domain: \"zaobao.com\"\n    - id: \"cankaoxiaoxi\"\n      name: \"参考消息\"\n      expected_domain: \"cankaoxiaoxi.com\"\n    - id: \"sputniknewscn\"\n      name: \"卫星通讯社\"\n      expected_domain: \"sputniknews.cn\"\n    - id: \"kaopu\"\n      name: \"靠谱新闻\"\n      expected_domain: \"kaopu.news\"\n    - id: \"tieba\"\n      name: \"百度贴吧\"\n      expected_domain: \"baidu.com\"\n    - id: \"douban\"\n      name: \"豆瓣热门电影\"\n      expected_domain: \"douban.com\"\n    - id: \"chongbuluo-hot\"\n      name: \"虫部落最热\"\n      expected_domain: \"chongbuluo.com\"\n    # ═══ 社交媒体/短视频 ═══\n    - id: \"weibo\"\n      name: \"微博\"\n      expected_domain: \"weibo.com\"\n    - id: \"douyin\"\n      name: \"抖音\"\n      expected_domain: \"douyin.com\"\n    - id: \"kuaishou\"\n      name: \"快手\"\n      expected_domain: \"kuaishou.com\"\n    - id: \"zhihu\"\n      name: \"知乎\"\n      expected_domain: \"zhihu.com\"\n    - id: \"bilibili-hot-search\"\n      name: \"bilibili 热搜\"\n      expected_domain: \"bilibili.com\"\n    # ═══ 财经/投资 ═══\n    - id: \"wallstreetcn-hot\"\n      name: \"华尔街见闻\"\n      expected_domain: \"wallstreetcn.com\"\n    - id: \"cls-hot\"\n      name: \"财联社热门\"\n      expected_domain: \"cls.cn\"\n    - id: \"jin10\"\n      name: \"金十数据\"\n      expected_domain: \"jin10.com\"\n    - id: \"xueqiu-hotstock\"\n      name: \"雪球热门股票\"\n      expected_domain: \"xueqiu.com\"\n    - id: \"gelonghui\"\n      name: \"格隆汇\"\n      expected_domain: \"gelonghui.com\"\n    - id: \"mktnews-flash\"\n      name: \"MKTNews 快讯\"\n      expected_domain: \"mktnews.net\"\n    - id: \"fastbull-express\"\n      name: \"法布财经\"\n      expected_domain: \"fastbull.cn\"\n    # ═══ 科技/数码 ═══\n    - id: \"36kr-renqi\"\n      name: \"36氪人气榜\"\n      expected_domain: \"36kr.com\"\n    - id: \"ithome\"\n      name: \"IT之家\"\n      expected_domain: \"ithome.com\"\n    - id: \"sspai\"\n      name: \"少数派\"\n      expected_domain: \"sspai.com\"\n    - id: \"juejin\"\n      name: \"稀土掘金\"\n      expected_domain: \"juejin.cn\"\n    - id: \"coolapk\"\n      name: \"酷安\"\n      expected_domain: \"coolapk.com\"\n    - id: \"solidot\"\n      name: \"Solidot\"\n      expected_domain: \"solidot.org\"\n    - id: \"pcbeta-windows11\"\n      name: \"远景论坛\"\n      expected_domain: \"pcbeta.com\"\n    - id: \"freebuf\"\n      name: \"Freebuf 网络安全\"\n      expected_domain: \"freebuf.com\"\n    # ═══ 开发者/海外 ═══\n    - id: \"github-trending-today\"\n      name: \"GitHub Trending\"\n      expected_domain: \"github.com\"\n    - id: \"hackernews\"\n      name: \"Hacker News\"\n      expected_domain: \"news.ycombinator.com\"\n    - id: \"producthunt\"\n      name: \"Product Hunt\"\n      expected_domain: \"producthunt.com\"\n    - id: \"v2ex-share\"\n      name: \"V2EX\"\n      expected_domain: \"v2ex.com\"\n    - id: \"aihot\"\n      name: \"AIHOT\"\n      expected_domain: \"virxact.com\"\n    # ═══ 体育/游戏/影视 ═══\n    - id: \"hupu\"\n      name: \"虎扑\"\n      expected_domain: \"hupu.com\"\n    - id: \"dongqiudi\"\n      name: \"懂球帝\"\n      expected_domain: \"dongqiudi.com\"\n    - id: \"steam\"\n      name: \"Steam 在线人数\"\n      expected_domain: \"steampowered.com\"\n    - id: \"iqiyi-hot-ranklist\"\n      name: \"爱奇艺热播榜\"\n      expected_domain: \"iqiyi.com\"\n    - id: \"qqvideo-tv-hotsearch\"\n      name: \"腾讯视频热搜\"\n      expected_domain: \"qq.com\"\n    - id: \"nowcoder\"\n      name: \"牛客\"\n      expected_domain: \"nowcoder.com\"\n\n\n\n# ===============================================================\n# 3. 数据源 - RSS 订阅\n#\n# 与热榜数据分开存储，按时间流展示\n# 每个源配置：id(唯一标识)、name(显示名称)、url(订阅地址)\n# enabled: 可选，默认 true\n# max_age_days: 可选，覆盖全局 freshness_filter.max_age_days\n# ===============================================================\nrss:\n  enabled: true                       # 是否启用 RSS 抓取（true=启用, false=关闭）\n\n  # 文章新鲜度过滤（过滤超龄旧文章，避免重复推送）\n  # 仅在推送阶段过滤，所有文章仍会存入数据库\n  freshness_filter:\n    enabled: true                     # 是否启用新鲜度过滤（true=启用, false=关闭）\n\n    max_age_days: 1                   # 最大文章年龄（天）\n                                      # - 正整数：只推送 N 天内的文章\n                                      # - 0：禁用过滤，推送所有文章\n\n  # 单个 feed 可配置 max_age_days 覆盖全局设置：\n  # - 不配置：使用全局 freshness_filter.max_age_days（默认 3 天）\n  # - 正整数：覆盖全局设置，只推送此天数内的文章\n  # - 0：禁用此频道的新鲜度过滤，推送所有文章\n  feeds:\n    - id: \"hacker-news\"\n      name: \"Hacker News\"\n      url: \"https://hnrss.org/frontpage\"\n\n    - id: \"ruanyifeng\"\n      name: \"阮一峰的网络日志\"\n      url: \"http://www.ruanyifeng.com/blog/atom.xml\"\n      enabled: false                  # 禁用\n      # max_age_days: 3               # 示例：推送 3 天内的文章（更新较慢的博客）\n     \n    - id: \"yahoo-finance\"\n      name: \"雅虎财经\"\n      url: \"https://finance.yahoo.com/news/rssindex\"\n\n    # 中文科技/商业媒体（推荐）\n    - id: \"36kr\"\n      name: \"36氪\"\n      url: \"https://36kr.com/feed\"\n      max_age_days: 1\n\n    - id: \"sspai\"\n      name: \"少数派\"\n      url: \"https://sspai.com/feed\"\n      max_age_days: 1\n\n    - id: \"solidot\"\n      name: \"Solidot 奇客\"\n      url: \"https://www.solidot.org/index.rss\"\n      max_age_days: 1\n\n    # 海外科技媒体（按需启用）\n    - id: \"techcrunch\"\n      name: \"TechCrunch\"\n      url: \"https://techcrunch.com/feed/\"\n      enabled: false\n      max_age_days: 1\n\n    - id: \"ars-technica\"\n      name: \"Ars Technica\"\n      url: \"http://feeds.arstechnica.com/arstechnica/index\"\n      enabled: false\n      max_age_days: 1\n\n    # X/Twitter 博主（不稳定，需 rsshub 实例）\n    # 示例：替换 elonmusk 为你想关注的博主用户名\n    # - id: \"twitter-elonmusk\"\n    #   name: \"X / Elon Musk\"\n    #   url: \"https://rsshub.app/twitter/user/elonmusk\"\n    #   enabled: false\n    #   max_age_days: 1\n\n    # 自定义源示例\n    # - id: \"custom-feed\"\n    #   name: \"自定义源\"\n    #   url: \"https://example.com/feed.xml\"\n    #   enabled: false\n    #   max_age_days: 0               # 示例：禁用过滤，推送所有文章\n\n\n# ===============================================================\n# 4. 报告模式\n# ===============================================================\nreport:\n  mode: \"current\"                     # 报告模式（开启 schedule 后作为默认值，会被 timeline 时段覆盖）\n                                      # daily = 当日汇总，按时推送当天所有匹配新闻（会包含之前推过的）\n                                      # current = 当前榜单，按时推送当前在榜的匹配新闻（持续在榜的每次都出现）\n                                      # incremental = 增量监控，只推送新增内容，零重复（没有新增时不推送）\n\n  display_mode: \"keyword\"             # 分组维度\n                                      # keyword = 按关键词分组显示\n                                      # platform = 按平台/来源分组显示\n\n  sort_by_position_first: false       # 关键词模式排序（仅 display_mode=keyword 时生效）\n                                      # true = 按 frequency_words.txt 的定义顺序\n                                      # false = 按匹配到的热点条数排序（多的在前）\n\n  rank_threshold: 5                   # 排名高亮阈值（影响展示强调，不改变抓取范围）\n\n  max_news_per_keyword: 0             # 每个关键词/标签最大显示数量（0=不限制，仅影响展示裁剪）\n\n\n# ===============================================================\n# 4.5 筛选策略\n# ===============================================================\nfilter:\n  method: \"keyword\"                     # 筛选方式（二选一）\n                                       # keyword = 关键词匹配，不调用 AI，不消耗 token，但规则固定\n                                       #           词组定义在 config/frequency_words.txt\n                                       # ai = AI 智能分类，更灵活但每次运行消耗 token\n                                       #      兴趣描述在 config/ai_interests.txt，需配合下方 ai_filter\n\n  priority_sort_enabled: true          # AI 模式标签排序（仅 method=ai 时生效）\n                                       # true = 按兴趣描述中的定义顺序\n                                       # false = 按匹配条数排序（多的在前）\n\n\n# ===============================================================\n# 4.6 AI 智能筛选配置（仅 filter.method=ai 时生效）\n# ===============================================================\nai_filter:\n  batch_size: 200                         # 每批发送给 AI 的标题数，超过此数量自动分批\n  batch_interval: 2                       # 分批间隔（秒），避免触发 API 限流，0=不等待\n\n  min_score: 0.7                          # 推送最低分数阈值（0.0~1.0），值越高越严格\n                                          # 推荐 0.5~0.7 起步，0=不过滤\n\n  # 兴趣描述文件（默认 config/ai_interests.txt，无需配置）\n  # 自定义文件放入 config/custom/ai/ 目录，然后指定文件名：\n  # interests_file: \"finance.txt\"    # → 加载 config/custom/ai/finance.txt\n\n  reclassify_threshold: 0.6              # 全量重分类触发阈值（0~1）\n                                          # 越低越倾向全量重分类（更准但更耗 token）\n                                          # 越高越倾向增量更新（更省但可能不够新）\n\n  # 以下提示词模板一般无需修改（不建议动）\n\n  # 分类提示词模板\n  prompt_file: \"prompt.txt\"\n\n  # 标签提取提示词模板（首次运行时使用）\n  extract_prompt_file: \"extract_prompt.txt\"\n\n  # 标签更新提示词模板（兴趣变更时 AI 对比新旧标签）\n  update_tags_prompt_file: \"update_tags_prompt.txt\"\n\n\n# ===============================================================\n# 5. 推送内容控制\n#\n# 统一管理推送消息中显示哪些区域及其排列顺序\n# ===============================================================\ndisplay:\n  # 区域显示顺序（从上到下 = 推送中从上到下）\n  # 调整顺序：剪切粘贴整行即可\n  # 要显示某个区域，需同时：1. 在此列表中  2. 下方 regions 对应开关为 true\n  region_order:\n    - new_items                           # 1️⃣ 新增热点区域\n    - hotlist                             # 2️⃣ 热榜区域（关键词匹配 / AI 智能筛选）\n    - rss                                 # 3️⃣ RSS 订阅区域\n    - standalone                          # 4️⃣ 独立展示区\n    - ai_analysis                         # 5️⃣ AI 分析区域\n\n  # 推送区域开关（需配合上方 region_order 使用）\n  regions:\n    hotlist: true                     # 热榜区域：关键词匹配 / AI 智能筛选（true=显示, false=隐藏）\n    new_items: false                  # 新增热点区域：含热榜新增 + RSS 新增（true=显示, false=隐藏）\n                                      # 注：热点词汇统计中的新增标记🆕不受此配置影响\n\n    rss: true                         # RSS 订阅区域（true=显示并分析, false=隐藏并跳过分析）\n    standalone: false                 # 独立展示区：完整热榜/RSS，不受关键词过滤（true=显示, false=隐藏）\n    ai_analysis: true                 # AI 分析区域（true=显示, false=隐藏）\n\n  # 独立展示区：将指定平台/RSS 完整展示，不受关键词过滤\n  # 推送展示由 regions.standalone 控制，AI 分析由 ai_analysis.include_standalone 控制\n  standalone:\n    platforms: [\"zhihu\", \"wallstreetcn-hot\"]     # 热榜平台 ID 列表（如 [\"zhihu\", \"weibo\"]）\n    rss_feeds: []                                # RSS 源 ID 列表（如 [\"hacker-news\"]）\n    max_items: 20                                # 每个源最多展示条数（0=不限制）\n\n\n# ===============================================================\n# 6. 推送通知\n#\n# ⚠️ 安全警告：webhook 地址不要公开！\n#    GitHub 部署请将 webhook 填入 GitHub Secrets，不要写在这里\n#\n# 📌 多账号：分号(;)分隔，如 \"url1;url2;url3\"\n#    配对项（如 Telegram token 和 chat_id）数量必须一致\n# ===============================================================\nnotification:\n  enabled: true                       # 是否启用通知功能（true=启用, false=关闭）—— 总开关\n                                      # 开启 schedule 后此项仍为总开关：false=永远不推送，true=由调度控制\n\n  # 推送渠道配置\n  channels:\n    feishu:\n      webhook_url: \"https://open.feishu.cn/open-apis/bot/v2/hook/7516a809-8cfa-4c6b-a604-3e9dc084f3dc\"  # 飞书群机器人 webhook URL\n\n    dingtalk:\n      webhook_url: \"\"                 # 钉钉机器人 webhook URL\n\n    wework:\n      webhook_url: \"\"                 # 企业微信机器人 webhook URL\n      msg_type: \"markdown\"            # 消息类型：markdown(群机器人) | text(个人微信应用)\n\n    telegram:\n      bot_token: \"\"                   # Telegram Bot Token\n      chat_id: \"\"                     # Telegram Chat ID\n\n    email:\n      from: \"\"                        # 发件人邮箱地址\n      password: \"\"                    # 发件人邮箱密码或授权码\n      to: \"\"                          # 收件人邮箱，多个用逗号分隔\n      smtp_server: \"\"                 # SMTP 服务器（可选，留空自动识别）\n      smtp_port: \"\"                   # SMTP 端口（可选，留空自动识别）\n\n    ntfy:\n      server_url: \"https://ntfy.sh\"   # ntfy 服务器地址（可改为自托管）\n      topic: \"\"                       # ntfy 主题名称\n      token: \"\"                       # ntfy 访问令牌（可选，用于私有主题）\n\n    bark:\n      url: \"\"                         # Bark 推送 URL（格式：https://api.day.app/your_device_key）\n\n    slack:\n      webhook_url: \"\"                 # Slack Incoming Webhook URL\n\n    generic_webhook:\n      webhook_url: \"\"                 # 通用 Webhook URL（支持 Discord、Matrix、IFTTT 等）\n      payload_template: \"\"            # JSON 模板，支持 {title} 和 {content} 占位符\n                                      # 示例：{\"content\": \"{content}\"}\n                                      # 留空则使用默认格式：{\"title\": \"{title}\", \"content\": \"{content}\"}\n\n\n# ===============================================================\n# 7. 存储配置\n# ===============================================================\nstorage:\n  # 存储后端选择\n  # - auto: 自动选择（GitHub Actions 且配置了远程存储 → remote，否则 → local）\n  # - local: 本地 SQLite + TXT/HTML 文件\n  # - remote: 远程云存储（S3 兼容协议，支持 R2/OSS/COS 等）\n  backend: \"auto\"\n\n  # 数据格式选项\n  formats:\n    sqlite: true                      # 主存储（必须保持 true，请勿关闭）\n    txt: false                        # 是否生成 TXT 快照（true=生成, false=不生成）\n    html: true                        # 是否生成 HTML 报告（true=生成, false=不生成）\n                                      # ⚠️ 邮件推送或者需要看网页版报告必须设为 true\n\n  # 本地存储配置\n  local:\n    data_dir: \"output\"                # 数据目录\n    retention_days: 0                 # 保留天数（0=永久保留）\n\n  # 远程存储配置（S3 兼容协议）\n  # 支持: Cloudflare R2, 阿里云 OSS, 腾讯云 COS, AWS S3, MinIO 等\n  # 建议将敏感信息配置在 GitHub Secrets 或环境变量中\n  remote:\n    retention_days: 0                 # 保留天数（0=永久保留）\n\n    # S3 兼容配置（或使用环境变量 S3_ENDPOINT_URL 等）\n    endpoint_url: \"\"                  # 服务端点\n                                      # Cloudflare R2: https://<account_id>.r2.cloudflarestorage.com\n                                      # 阿里云 OSS: https://oss-cn-hangzhou.aliyuncs.com\n                                      # 腾讯云 COS: https://cos.ap-guangzhou.myqcloud.com\n    bucket_name: \"\"                   # 存储桶名称\n    access_key_id: \"\"                 # 访问密钥 ID\n    secret_access_key: \"\"             # 访问密钥\n    region: \"\"                        # 区域（可选，部分服务商需要）\n\n  # 数据拉取（从远程同步到本地，用于 MCP Server 等场景）\n  pull:\n    enabled: false                    # 是否启用启动时自动拉取（true=启用, false=关闭）\n    days: 7                           # 拉取最近 N 天的数据\n\n\n# ===============================================================\n# 8. AI 模型配置（ai_analysis / ai_translation / ai_filter 共用）\n# ===============================================================\nai:\n  # LiteLLM 模型格式: 提供商/模型名\n  # 示例:\n  #   - deepseek/deepseek-v4-flash (DeepSeek，便宜够用，推荐)\n  #   - deepseek/deepseek-v4-pro\n  #   - openai/gpt-4o (OpenAI)\n  #   - gemini/gemini-2.5-flash (Google Gemini)\n  #   - anthropic/claude-sonnet-4-20250514 (Anthropic)\n  #   - ollama/llama3 (本地 Ollama)\n  # 完整列表: https://docs.litellm.ai/docs/providers\n  # 如果你对于看英文文档比较头疼，那么可以点击页面右下角的 【Ask AI】 ,用中文询问怎么配置\n\n  model: \"deepseek/deepseek-chat\"\n\n  api_key: \"\"                       # API Key（建议使用环境变量 AI_API_KEY）\n  \n  api_base: \"\"                      # 自定义 API 地址（可选，绝大多数情况留空即可）\n                                    #\n                                    # ❓ 什么时候需要填？\n                                    #    当你使用的 AI 服务商不在上方支持列表中时。\n                                    #    比如某些国内 API 中转站、私有部署的服务等。\n                                    #    如果你用的是 DeepSeek、OpenAI、Gemini 等主流服务商，\n                                    #    不用填这个，留空就行。\n                                    #\n                                    # 🔧 怎么填？两步走：\n                                    #    第一步 - api_base 填写服务商给你的接口地址\n                                    #      例如: https://your-provider.com/v1\n                                    #\n                                    #    第二步 - model 前面加上 \"openai/\" 前缀\n                                    #      例如: openai/deepseek-ai/DeepSeek-V3\n                                    #\n                                    # 💡 为什么要加 openai/ 前缀？\n                                    #    大部分 AI 服务商都兼容同一套通用接口格式，\n                                    #    加上 openai/ 就是告诉系统\"用这套通用格式去连接\"，\n                                    #    这样几乎任何服务商都能接入。\n\n\n  timeout: 120                      # 请求超时（秒）\n\n  temperature: 1.0                  # 采样温度 (0.0-2.0)\n                                    # 注意：部分模型(如 gpt-5)可能要求必须为 1.0，否则会报错\n  \n  max_tokens: 5000                  # 最大生成 token 数\n                                    # 注意：如果 API 不支持此参数(报 HTTP 400)，请设为 0 以禁用发送\n  # 高级选项\n  num_retries: 1                    # 失败重试次数\n  fallback_models: []               # 备用模型列表（可选）\n                                    # 示例: [\"openai/gpt-4o-mini\", \"openai/deepseek-ai/DeepSeek-V3\"]\n\n  # 额外参数（一般无需修改，删掉 # 号即可启用）\n  # extra_params:\n  #   top_p: 1.0\n  #   presence_penalty: 0.0\n  #   stop: [\"END\"]\n\n\n# ===============================================================\n# 9. AI 分析功能（模型配置见上方 ai 段）\n# ===============================================================\nai_analysis:\n  enabled: true                     # 是否启用 AI 分析（已配 AI_API_KEY 环境变量，打开）\n                                    # 开启 schedule 后此项仍为总开关：false=永远不分析，true=由调度控制\n\n  language: \"Chinese\"               # 分析报告语言（如 \"English\", \"Korean\", \"法语\"）\n  prompt_file: \"ai_analysis_prompt.txt\"   # 提示词文件（相对于 config 目录）\n\n  mode: \"follow_report\"             # AI 分析模式（可独立于 report.mode）\n                                    # follow_report = 跟随 report.mode（默认）\n                                    # daily / current / incremental = 强制使用指定模式\n\n  max_news_for_analysis: 150        # 参与分析的新闻数量上限（控制 token 成本的关键项）\n                                    # 热榜优先占用配额，RSS 用剩余配额，独立展示区不受此限制\n\n  include_rss: false                # 是否包含 RSS 内容进行分析（true=包含, false=不包含）\n  include_standalone: true          # 是否纳入独立展示区数据（true=纳入, false=不纳入）\n\n  include_rank_timeline: true       # 排名时间线详细程度\n                                    # true = 完整轨迹（如 1(09:30)→2(10:00)），AI 分析更准但多耗 0.5~1 倍 token\n                                    # false = 简化格式（排名范围+出现次数），更省 token\n\n\n\n\n# ===============================================================\n# 10. AI 翻译功能（模型配置见上方 ai 段）\n#\n# 对推送标题进行翻译，不包含 AI 分析的内容\n# ===============================================================\nai_translation:\n  enabled: true                     # 是否启用翻译功能（已配 AI_API_KEY 环境变量，打开）\n  language: \"中文\"                   # 翻译目标语言（如 \"English\", \"Korean\", \"法语\"）\n  prompt_file: \"ai_translation_prompt.txt\"   # 提示词文件（相对于 config 目录）\n\n  batch_size: 100                   # 每批发送给 AI 的标题数，超过此数量自动分批\n  batch_interval: 2                 # 分批间隔（秒），避免触发 API 限流，0=不等待\n\n  # 翻译范围（display.regions 关闭的区域即使开启也不会翻译）\n  scope:\n    hotlist: false                  # 翻译热榜标题（true=翻译, false=不翻译）\n    rss: true                       # 翻译 RSS 标题（true=翻译, false=不翻译）\n    standalone: true                # 翻译独立展示区标题（true=翻译, false=不翻译）\n\n\n# ===============================================================\n# 11. 高级设置（一般无需修改）\n# ===============================================================\nadvanced:\n  debug: false                        # 调试模式（true=开启详细日志, false=正常模式）\n\n  # 版本检查\n  version_check_url: \"https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/version\"\n  mcp_version_check_url: \"https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/version_mcp\"\n  configs_version_check_url: \"https://raw.githubusercontent.com/sansan0/TrendRadar/refs/heads/master/version_configs\"\n\n  # 热榜爬虫技术参数\n  crawler:\n    request_interval: 2000            # 请求间隔（毫秒）\n    use_proxy: false                  # 是否启用代理（true=启用, false=不使用）\n    default_proxy: \"http://127.0.0.1:10801\"\n\n  # RSS 设置\n  rss:\n    request_interval: 1000            # 请求间隔（毫秒）\n    timeout: 15                       # 请求超时（秒）\n    use_proxy: false                  # 是否使用代理（true=启用, false=不使用）\n    proxy_url: \"\"                     # RSS 专属代理（留空则使用 crawler.default_proxy）\n\n  # 排序权重（用于重新排序不同平台的热搜）\n  # 合起来等于 1\n  weight:\n    rank: 0.6                         # 排名权重\n    frequency: 0.3                    # 频次权重\n    hotness: 0.1                      # 热度权重\n\n  # 多账号限制\n  max_accounts_per_channel: 3         # 每个渠道最大账号数量\n\n  # 以下为内部参数（一般无需修改）\n  # 消息分批大小（字节）- 内部配置，请勿修改\n  batch_size:\n    default: 4000\n    dingtalk: 20000\n    feishu: 30000\n    bark: 4000\n    slack: 4000\n  batch_send_interval: 3              # 批次发送间隔（秒）\n  feishu_message_separator: \"━━━━━━━━━━━━━━━━\"\n", "frequency_words.txt": "# ═══════════════════════════════════════════════════════════════\n#                    TrendRadar 频率词配置文件\n#                         Version: 1.1.0\n# ═══════════════════════════════════════════════════════════════\n\n# 可视化配置编辑器地址: https://sansan0.github.io/TrendRadar/\n#\n# 凡是左侧有 # 的都是仅供阅读的说明性文字\n#\n# 这个文件用来设置你想关注的新闻关键词。\n# 系统会自动抓取包含这些关键词的热榜新闻推送给你。\n#\n# 文件分为两个区域：\n#   [GLOBAL_FILTER]  - 全局过滤区：排除不想看的内容\n#   [WORD_GROUPS]    - 词组定义区：设置想关注的关键词\n#\n# ═══════════════════════════════════════════════════════════════\n\n\n# ───────────────────────────────────────────────────────────────\n#                        全局过滤区\n# ───────────────────────────────────────────────────────────────\n# 在这里写入你不想看到的词，每行一个。\n# 包含这些词的新闻会被自动排除，不会出现在推送中。\n#\n# 使用方法：\n#   震惊              直接写词，包含\"震惊\"的新闻会被过滤\n#   /赌博|博彩/       用 /.../ 包裹可以匹配多个词（用 | 分隔）\n\n[GLOBAL_FILTER]\n# 过滤标题党\n震惊\n\n\n\n# ───────────────────────────────────────────────────────────────\n#                        词组定义区\n# ───────────────────────────────────────────────────────────────\n# 在这里写入你想关注的关键词。\n# 每个词组用空行分隔，同一词组内的关键词是\"或\"的关系。\n#\n# ┌─────────────────────────────────────────────────────────────┐\n# │                      语法总览（快速参考）                      │\n# └─────────────────────────────────────────────────────────────┘\n#\n# 关键词语法：\n#   关键词            普通关键词，标题包含即匹配\n#   /正则/            正则表达式匹配（自动忽略大小写）\n#   关键词 => 别名    给关键词指定显示别名\n#   [组别名]          词组第一行，给整组指定别名\n#   +关键词           必须词，所有必须词都要匹配才算匹配\n#   !关键词           过滤词，匹配则排除该条新闻（仅限当前词组）\n#   @数字             限制该词组最多显示多少条\n#\n# 显示名称优先级：\n#   1. 有组别名 → 显示组别名\n#   2. 没有组别名 → 显示各行别名拼接（用 \" / \" 连接）\n#   3. 没有别名 → 显示关键词本身\n#\n#\n# ┌─────────────────────────────────────────────────────────────┐\n# │                      基础用法（推荐新手）                      │\n# └─────────────────────────────────────────────────────────────┘\n#\n# 1. 最简单：直接写关键词\n#    ────────────────────\n#    华为\n#\n#    效果：匹配所有包含\"华为\"的新闻\n#\n#\n# 2. 多个关键词归为一组\n#    ────────────────────\n#    华为\n#    鸿蒙\n#    任正非\n#\n#    效果：匹配包含\"华为\"或\"鸿蒙\"或\"任正非\"的新闻，统一显示为\"华为 / 鸿蒙 / 任正非\"\n#\n#\n# 3. 给词组起个名字（推荐）\n#    ────────────────────\n#    [华为]\n#    华为\n#    鸿蒙\n#    任正非\n#\n#    效果：同上，但显示名称为\"华为\"（更简洁）\n#\n#\n# ┌─────────────────────────────────────────────────────────────┐\n# │                      进阶用法（可选）                         │\n# └─────────────────────────────────────────────────────────────┘\n#\n# 4. 用正则表达式匹配多个词（一行搞定）\n#    ────────────────────\n#    /华为|鸿蒙|任正非/ => 华为\n#\n#    效果：匹配包含\"华为\"或\"鸿蒙\"或\"任正非\"的新闻，显示为\"华为\"\n#    说明：/.../ 里用 | 分隔多个词，=> 后面是显示名称\n#\n#    💡 不懂正则？问 AI：\n#       \"帮我写一个正则表达式，匹配包含'华为'或'鸿蒙'或'任正非'的文本，\n#        格式要求：/正则/ => 显示名称\"\n#\n#\n# 5. 精确匹配英文单词（避免误匹配）\n#    ────────────────────\n#    /\\bAI\\b/i => AI\n#\n#    说明：\\b 表示单词边界，避免匹配到 \"MAIL\" 中的 \"AI\"\n#          /i 表示忽略大小写，\"ai\"、\"AI\"、\"Ai\" 都能匹配\n#\n#    💡 不懂正则？问 AI：\n#       \"帮我写一个正则表达式，精确匹配英文单词'AI'（不匹配 MAIL 中的 AI），\n#        忽略大小写，格式要求：/正则/i => 显示名称\"\n#\n#\n# 6. 排除特定内容\n#    ────────────────────\n#    [苹果公司]\n#    苹果\n#    !水果\n#    !果园\n#\n#    效果：匹配\"苹果\"但排除包含\"水果\"或\"果园\"的新闻\n#    说明：! 开头的词表示\"排除\"\n#\n#\n# 7. 限制显示条数\n#    ────────────────────\n#    [科技新闻]\n#    科技\n#    @5\n#\n#    效果：最多显示 5 条匹配的新闻\n#    说明：@数字 表示限制条数\n#\n#\n# 8. 必须同时包含多个词\n#    ────────────────────\n#    +苹果\n#    +发布会\n#\n#    效果：必须同时包含\"苹果\"和\"发布会\"才匹配\n#    说明：+ 开头的词表示\"必须包含\"\n#\n# ───────────────────────────────────────────────────────────────\n\n[WORD_GROUPS]\n\n# ═══════════════════════════════════════════════════════════════\n#                         企业与品牌\n# ═══════════════════════════════════════════════════════════════\n\n/胖东来|于东来/ => 胖东来\n\n/深度求索|幻方量化|梁文锋|\\bDeepSeek\\b/ => DeepSeek\n\n/华为|任正非|余承东|鸿蒙|海思|昇腾|鲲鹏|\\bHUAWEI\\b|\\bHarmonyOS\\b|\\bHiSilicon\\b/ => 华为\n\n/比亚迪|王传福|方程豹|腾势|仰望|弗迪|刀片电池|云辇|\\bBYD\\b|\\bDenza\\b|\\bYangwang\\b/ => 比亚迪\n\n/大疆|汪滔|灵眸|如影|\\bDJI\\b|\\bRoboMaster\\b|\\bMavic\\b|\\bZenmuse\\b/ => 大疆\n\n/宇树|王兴兴|\\bUnitree\\b/ => 宇树机器人\n\n/智元|灵犀|稚晖君|彭志辉|AgiBot/ => 智元机器人\n/众擎|EngineAI|赵同阳/ => 众擎机器人\n\n/黑神话|冯骥/ => 黑神话悟空\n\n/影之刃零|梁其伟/ => 影之刃零\n\n/三体|流浪地球|刘慈欣|郭帆/ => 三体/流浪地球\n\n申奥\n\n/京东|刘强东|\\bJD\\b|\\bJingdong\\b/ => 京东\n\n/字节|张一鸣|梁汝波|抖音|\\bByteDance\\b|\\bTikTok\\b|\\bDouyin\\b|\\bLark\\b|\\bCapCut\\b/ => 字节跳动\n\n/腾讯|鹅厂|马化腾|微信|QQ|天美|阅文集团|微众银行|\\bTencent\\b|\\bPony Ma\\b|\\bWeChat\\b|\\bLightSpeed\\b|\\bWeBank\\b/ => 腾讯\n\n/qwen|minimax|glm/ => 国产开源模型\n\n/特斯拉|马斯克|\\bTesla\\b|\\bElon Musk\\b|\\bCybertruck\\b|\\bModel 3\\b|\\bModel Y\\b|\\bModel S\\b|\\bModel X\\b|\\bFSD\\b/ => 特斯拉\n\n/英伟达|黄仁勋|\\bNVIDIA\\b|\\bGeForce\\b|\\bRTX\\b|\\bCUDA\\b|\\bJensen Huang\\b/ => 英伟达\n/苏姿丰|锐龙|霄龙|\\bAMD\\b|\\bRyzen\\b|\\bEPYC\\b|\\bRadeon\\b|\\bLisa Su\\b/ => AMD\n\n/微软|\\bMicrosoft\\b|\\bWindows\\b|\\bAzure\\b|\\bSatya Nadella\\b|\\bCopilot\\b/ => 微软\n/谷歌|皮查伊|安卓|油管|\\bGoogle\\b|\\bAlphabet\\b|\\bAndroid\\b|\\bChrome\\b|\\bYouTube\\b|\\bGemini\\b|\\bDeepMind\\b|\\bWaymo\\b/ => 谷歌\n/库克|\\biPhone\\b|\\biPad\\b|\\bMacBook\\b|\\biOS\\b|\\bVision Pro\\b|\\bAirPods\\b|\\bApple\\b|\\bTim Cook\\b/ => 苹果\n\n/\\bOpenAI\\b|\\bChatGPT\\b|\\bSora\\b|\\bDALL-E\\b|\\bSam Altman\\b|\\bGreg Brockman\\b/ => OpenAI\n/\\bAnthropic\\b|\\bClaude\\b|\\bDario Amodei\\b/ => Claude\n\n\n# ═══════════════════════════════════════════════════════════════\n#                         国家与地区\n# ═══════════════════════════════════════════════════════════════\n\n[中国]\n国产\n中国\n\n[东亚]\n日本\n朝鲜\n韩国\n\n[北美]\n美国\n加拿大\n\n[西欧]\n法国\n英国\n\n/俄罗斯|俄国/ => 俄罗斯\n\n印度\n\n\n# ═══════════════════════════════════════════════════════════════\n#                         科技领域\n# ═══════════════════════════════════════════════════════════════\n\n[AI 相关]\n/(?<![a-zA-Z])ai(?![a-zA-Z])/\n人工智能\n\n[芯片]\n芯片\n光刻机\n半导体\n\n/水电|雅鲁藏布江/ => 水电\n/光伏|太阳能/ => 光伏\n核能\n能源\n\n/自动驾驶|无人驾驶|智驾/ => 自动驾驶\n\n机器人\n/机械狗|四足/ => 机器狗\n具身智能\n\n/月球|登月|火星|宇宙|飞船|航天|空间站|卫星/ => 航天\n\n# 前沿科技\n量子\n脑机\n基因\n\n# 产业政策\n生产力\n", "timeline.yaml": "# ═══════════════════════════════════════════════════════════════\n#                   TrendRadar 时间线配置\n#                      Version: 1.2.0\n# ═══════════════════════════════════════════════════════════════\n#\n# 这个文件控制「什么时间做什么事」。\n#\n# 大多数人不需要编辑这个文件。\n# 只需在 config.yaml 中选择一个预设模板即可：\n#\n#   schedule:\n#     preset: \"morning_evening\"    ← 改这里就行\n#\n#\n# 可视化配置编辑器地址: https://sansan0.github.io/TrendRadar/\n#\n#\n# ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─\n# 📖 基本概念（帮助你理解后面的配置）\n# ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─\n#\n#\n# 🔁 程序是怎么运行的？\n#\n#   TrendRadar 不是一直在后台运行的，而是被「定时闹钟」周期性唤醒：\n#\n#     GitHub Actions 用户 → 由 .github/workflows/crawler.yml 中的 cron 定时触发\n#                           默认每小时运行一次（如每小时第 33 分钟）\n#\n#     Docker 用户         → 由 docker/.env 中的 CRON_SCHEDULE 定时触发\n#                           默认每 30 分钟运行一次\n#\n#   每次被唤醒后，程序按以下三个阶段依次执行：\n#\n#     1️⃣ 采集（collect）\n#        爬取各热榜平台 + RSS 订阅源的最新数据，存入数据库\n#\n#                  ⬇\n#\n#     2️⃣ 分析（analyze）\n#        调用 AI 大模型对采集到的新闻进行深度分析（可选，需配置 API Key）\n#\n#                  ⬇\n#\n#     3️⃣ 推送（push）\n#        将整理好的热点新闻 + AI 分析结果发送到你的通知渠道\n#        （飞书、钉钉、Telegram、邮件等）\n#\n#   这三个阶段都可以独立开关。本文件的作用就是控制：\n#   「在什么时间段，开启/关闭哪些阶段」。\n#\n#\n# 🔌 config.yaml 总开关 与 timeline 时间段开关 的关系\n#\n#   config.yaml 里有几个「总开关」，它们的优先级高于本文件：\n#\n#     platforms.enabled: false   → 永远不爬热榜（无论 timeline 怎么设置）\n#     rss.enabled: false         → 永远不爬 RSS（同上）\n#     notification.enabled: false → 永远不推送（同上）\n#     ai_analysis.enabled: false  → 永远不分析（同上）\n#\n#   只有当总开关为 true 时，timeline 的时间段开关才会生效。\n#   换句话说：总开关决定「能不能做」，timeline 决定「什么时候做」。\n#\n#\n# ⏰ 什么是「时间段」和「静默期」？\n#\n#   你可以把一天想象成一条时间线，上面划分了若干个「时间段」。\n#   每个时间段有自己的行为开关（是否采集、是否分析、是否推送）。\n#\n#   而不在任何时间段内的时间，就叫「静默期」（走 default 默认配置）。\n#   静默期通常必须要采集，这样数据一直在积累，\n#   等到推送时，就能汇总出完整的报告。\n#\n#\n#   💡 静默期越长，积累的数据越丰富（排名变化轨迹、上榜/下榜时间等），\n#   最终提交给 AI 分析的上下文也越完整，分析质量更高。\n#   相比 MCP Server，该方案的全天数据能呈现更完整的热度趋势和变化脉络。\n#\n#\n# ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─\n# 📋 预设模板一览（选一个就行）\n# ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─\n#\n#   1️⃣ always_on        全天候，有新增就推（默认）\n#   2️⃣ morning_evening  全天推送 + 晚间汇总（推荐大多数人）\n#   3️⃣ office_hours     工作日三段式：到岗速览→午间热点→收工汇总\n#   4️⃣ night_owl        午后速览 + 深夜全天汇总\n#   5️⃣ custom           完全自定义（需要编辑本文件底部的 custom 段）\n#\n# 想自定义？两种方式：\n#   1. 直接翻到本文件底部的「自定义模式」部分\n#   2. 在下方 presets 里新增你自己的预设模板\n#      （只要 key 不重复，然后在 config.yaml 里填你的模板名即可）\n#\n# ⚠️ 关于时间段设计的建议：\n#   GitHub Actions： 建议定时任务间隔 ≥ 2 小时。由于系统触发存在随机延迟，间隔过短可能导致任务漏运行。\n#   Docker 用户：cron 定时是准时的，无此限制，按需设置即可。\n#\n#\n# ═══════════════════════════════════════════════════════════════\n\n\n# ───────────────────────────────────────────────────────────────\n# 预设模板\n# ───────────────────────────────────────────────────────────────\npresets:\n\n  # ───────────────────────────────────────────────────────────\n  # 1️⃣ always_on - 全天候监控\n  #\n  # 最简单的模式：全天候采集 + 推送，有新增就通知你。\n  # 不划分时间段，全天使用同一套配置。\n  # 适合：重度用户、实时舆情监控\n  #\n  # 全天：推送 ✓ | AI分析 ✗ | 不限推送次数\n  # ───────────────────────────────────────────────────────────\n  always_on:\n    name: \"全天监控\"\n    description: \"全天候监控，有新增立即推送。适合重度用户。\"\n\n    # 默认配置 ── 不在任何时间段内时，使用这组开关\n    # 因为这个模式没有划分时间段，所以 default 就是全天的行为\n    default:\n      collect: true                # 采集数据（爬取热榜 + RSS）\n      analyze: false               # 不做 AI 分析（节省 API 费用）\n      ai_mode: \"current\"           # AI 分析当前榜单\n      push: true                   # 有新内容就推送\n      report_mode: \"incremental\"   # 只推送新增内容，避免重复\n      once:                        # 限制每个时间段内只执行一次\n        analyze: false             #   不限制分析次数\n        push: false                #   不限制推送次数\n\n    # 没有定义任何时间段，全天都走 default\n    #\n    # 语法提示：{} 是 YAML 的「空字典」写法，表示里面没有任何内容。\n    # 等价于写成多行但什么都不填。后面的 [] 同理，表示「空列表」。\n    periods: {}\n    day_plans:\n      all_day:\n        periods: []                   # 空列表 = 这天不启用任何时间段\n    week_map:\n      1: \"all_day\"                 # 周一\n      2: \"all_day\"                 # 周二\n      3: \"all_day\"                 # 周三\n      4: \"all_day\"                 # 周四\n      5: \"all_day\"                 # 周五\n      6: \"all_day\"                 # 周六\n      7: \"all_day\"                 # 周日\n\n\n  # ───────────────────────────────────────────────────────────\n  # 2️⃣ morning_evening - 早晚汇总（推荐）\n  #\n  # 全天推送当前热点 + 晚间做一次当日全天汇总。\n  # 适合：大多数人\n  #\n  # 默认（全天）：推送 ✓ | AI分析 ✓ | 不限推送次数\n  # 晚间汇总：推送 ✓ | AI分析 ✓ | 只推/分析一次\n  # ───────────────────────────────────────────────────────────\n  morning_evening:\n    name: \"早晚汇总\"\n    description: \"全天推送 + 晚间当日汇总。适合大多数人。\"\n\n    # 默认配置 ── 不命中任何时间段时的行为\n    default:\n      collect: true                # 始终采集\n      analyze: true                # AI 分析当前榜单\n      ai_mode: \"current\"           # AI 分析当前榜单\n      push: true                   # 每次推送当前在榜热点\n      report_mode: \"current\"       # 当前在榜的新闻\n      # frequency_file: \"xxx.txt\"               # 关键词文件（可选，位于 config/custom/keyword/）\n      # interests_file: \"xxx.txt\"                # AI 兴趣文件（可选，位于 config/custom/ai/）\n      # filter_method: \"keyword\"                # 筛选策略（可选: keyword | ai，不填用全局 filter.method）\n      once:\n        analyze: false             # 不限制分析次数\n        push: false                # 不限制推送次数\n\n    # 时间段定义 ── 只有晚间汇总需要特殊处理\n    periods:\n      evening_summary:\n        name: \"晚间汇总\"\n        start: \"20:00\"\n        end: \"22:00\"\n        # frequency_file: \"xxx.txt\"               # 关键词文件（可选，位于 config/custom/keyword/）\n        # interests_file: \"xxx.txt\"                # AI 兴趣文件（可选，位于 config/custom/ai/）\n        # filter_method: \"keyword\"                # 筛选策略（可选: keyword | ai，不填用全局 filter.method）\n        analyze: true              # 晚间做 AI 分析\n        ai_mode: \"daily\"           # AI 也汇总全天内容\n        report_mode: \"daily\"       # 切换为当日全部新闻汇总\n        once:\n          analyze: true            # 窗口内只分析一次\n          push: true               # 窗口内只推送一次\n\n    # 日计划 ── 把时间段组装成一天的安排\n    day_plans:\n      all_day:\n        periods: [\"evening_summary\"]\n\n    # 周映射 ── 每天用哪个日计划（1=周一 ... 7=周日）\n    week_map:\n      1: \"all_day\"\n      2: \"all_day\"\n      3: \"all_day\"\n      4: \"all_day\"\n      5: \"all_day\"\n      6: \"all_day\"\n      7: \"all_day\"\n\n\n  # ───────────────────────────────────────────────────────────\n  # 3️⃣ office_hours - 办公时间推送\n  #\n  # 工作日三段式推送，周末增量自由推。\n  # 适合：上班族、企业用户\n  #\n  # 默认（静默期）：推送 ✗ | AI分析 ✗\n  # 到岗速览：推送 ✓ | AI分析 ✓ | 只推一次\n  # 午间热点：推送 ✓ | AI分析 ✗ | 只推一次\n  # 收工汇总：推送 ✓ | AI分析 ✓ | 只推一次\n  # 周末自由：推送 ✓ | AI分析 ✗ | 不限推送次数\n  # ───────────────────────────────────────────────────────────\n  office_hours:\n    name: \"办公时间\"\n    description: \"工作日三段式推送（到岗→午间→收工），周末增量自由推送。\"\n\n    default:\n      collect: true\n      analyze: false\n      ai_mode: \"current\"\n      push: false                  # 默认不推送\n      report_mode: \"current\"\n      once:\n        analyze: true              # 每个时段只分析一次\n        push: true                 # 每个时段只推送一次\n\n    periods:\n      morning_briefing:\n        name: \"到岗速览\"\n        start: \"09:00\"\n        end: \"11:00\"\n        analyze: true              # AI 分析当前热点\n        ai_mode: \"current\"         # AI 分析当前榜单\n        push: true                 # 到岗后看当前热点\n        report_mode: \"current\"     # 当前在榜的新闻\n        # once 继承 default（analyze: true, push: true）→ 只推/分析一次\n\n      noon_update:\n        name: \"午间热点\"\n        start: \"13:00\"\n        end: \"15:00\"\n        push: true                 # 午间推送当前在榜热点\n        report_mode: \"current\"     # 当前在榜的新闻\n        # analyze 继承 default: false → 午间不做 AI 分析，节省 API\n        # once 继承 default（push: true）→ 只推一次\n\n      closing_summary:\n        name: \"收工汇总\"\n        start: \"17:00\"\n        end: \"19:00\"\n        analyze: true              # AI 做全天汇总分析\n        ai_mode: \"daily\"           # AI 也分析全天内容\n        push: true                 # 下班前推送当日完整汇总\n        report_mode: \"daily\"       # 当日全部新闻汇总\n        # once 继承 default（analyze: true, push: true）→ 只推/分析一次\n\n      weekend_free:\n        name: \"周末自由\"\n        start: \"08:00\"\n        end: \"23:00\"\n        ai_mode: \"current\"         # AI 分析当前榜单\n        push: true                 # 有新增就推送\n        report_mode: \"incremental\" # 增量模式：有新增才推，没有就安静\n        once:\n          analyze: false           # 不限制分析次数\n          push: false              # 不限制推送次数\n\n    # 工作日使用三段式推送；周末使用增量自由模式\n    day_plans:\n      workday:\n        periods: [\"morning_briefing\", \"noon_update\", \"closing_summary\"]\n      weekend:\n        periods: [\"weekend_free\"]  # 周末：有新增就推，不打扰睡眠\n\n    week_map:\n      1: \"workday\"                 # 周一 → 工作日计划\n      2: \"workday\"\n      3: \"workday\"\n      4: \"workday\"\n      5: \"workday\"\n      6: \"weekend\"                 # 周六 → 周末计划\n      7: \"weekend\"                 # 周日 → 周末计划\n\n\n  # ───────────────────────────────────────────────────────────\n  # 4️⃣ night_owl - 夜猫子模式\n  #\n  # 白天安静，午后和深夜各推一次。\n  # 适合：夜间工作者、海外时差用户、自由职业者\n  #\n  # 默认（白天静默）：推送 ✗ | AI分析 ✗\n  # 午后速览：推送 ✓ | AI分析 ✓ | 只推一次\n  # 深夜汇总：推送 ✓ | AI分析 ✓ | 只推一次\n  # ───────────────────────────────────────────────────────────\n  night_owl:\n    name: \"夜猫子模式\"\n    description: \"午后速览 + 深夜全天汇总。适合夜间工作者、海外时差用户。\"\n\n    default:\n      collect: true\n      analyze: false\n      ai_mode: \"current\"\n      push: false\n      report_mode: \"current\"\n      once:\n        analyze: true              # 每个时段只分析一次\n        push: true                 # 每个时段只推送一次\n\n    periods:\n      afternoon_peek:\n        name: \"午后速览\"\n        start: \"15:00\"\n        end: \"17:00\"\n        analyze: true              # AI 分析当前热点\n        ai_mode: \"current\"         # AI 分析当前榜单\n        push: true                 # 午后看当前热点\n        report_mode: \"current\"     # 当前在榜的新闻\n        # once 继承 default（analyze: true, push: true）→ 只推/分析一次\n\n      late_night:\n        name: \"深夜汇总\"\n        start: \"22:00\"\n        end: \"01:00\"               # start > end → 自动识别为跨日\n        analyze: true              # AI 做全天汇总分析\n        ai_mode: \"daily\"           # AI 也分析全天内容\n        push: true                 # 深夜推送当日完整汇总\n        report_mode: \"daily\"       # 当日全部新闻汇总\n        # once 继承 default（analyze: true, push: true）→ 只推/分析一次\n\n    day_plans:\n      all_day:\n        periods: [\"afternoon_peek\", \"late_night\"]\n    week_map:\n      1: \"all_day\"\n      2: \"all_day\"\n      3: \"all_day\"\n      4: \"all_day\"\n      5: \"all_day\"\n      6: \"all_day\"\n      7: \"all_day\"\n\n\n# ═══════════════════════════════════════════════════════════════\n#\n# 5️⃣ 自定义模式\n#\n# 当 config.yaml 中设置 schedule.preset: \"custom\" 时，\n# 系统会读取下面这段配置。\n#\n# 如果上面的预设模板无法满足你的需求，可以在这里自由定义。\n#\n# ═══════════════════════════════════════════════════════════════\n#\n# 自定义配置的思路很简单，就像搭积木：\n#\n#   第 1 步：定义「积木块」（periods）\n#            每块积木 = 一个时间段 + 这段时间要做什么\n#            例如：早间 08-10 推送、晚间 19-21 汇总\n#\n#   第 2 步：拼成「一天的安排」（day_plans）\n#            把积木块组合起来，形成一天的日程\n#            例如：工作日用 [早间, 晚间]，周末用 [晚间]\n#\n#   第 3 步：指定「每天用哪个安排」（week_map）\n#            周一到周日，分别对应哪个日计划\n#            例如：周一~周五用 workday，周六周日用 weekend\n#\n#   另外还有一个「默认配置」（default），\n#   当某个时刻不在任何积木块内时，就用默认配置。\n#   积木块里没写的字段，也会自动回退到默认配置。\n#\n#\n# 下面是一个完整的自定义示例，工作日和周末使用不同的时间段安排：\n#\n#   工作日时间段:\n#     深夜静默 23:00-06:00（跨日）：采集 ✓ | 分析 ✓ | 推送 ✗\n#     工作日早间 08:00-10:00：推送 ✓ | incremental\n#     晚间汇总 19:00-21:00：推送 ✓ | 分析 ✓ | daily\n#     其余时间走默认配置（静默采集）\n#\n#   周末时间段:\n#     深夜静默 23:00-06:00（跨日）：采集 ✓ | 分析 ✓ | 推送 ✗\n#     周末早间 10:00-12:00：推送 ✓ | daily\n#     晚间汇总 19:00-21:00：推送 ✓ | 分析 ✓ | daily\n#     其余时间走默认配置（静默采集）\n\ncustom:\n  name: \"自定义\"\n  description: \"完全自由定义时间段、日计划和周映射。\"\n\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  # 默认配置\n  #\n  # 当前时刻不在任何时间段（积木块）内时，使用这组开关。\n  # 时间段中没有写的字段，也会回退到这里。\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  default:\n    collect: true                  # 是否采集数据（爬取热榜 + RSS）\n    analyze: false                 # 是否执行 AI 分析\n    ai_mode: \"current\"            # AI 分析模式:\n                                   #   follow_report → 跟随 report_mode\n                                   #   daily         → 强制全天汇总\n                                   #   current       → 强制当前榜单\n                                   #   incremental   → 强制增量模式\n    push: false                    # 是否发送推送通知\n    report_mode: \"current\"         # 报告模式:\n                                   #   daily       → 当日所有新闻的汇总\n                                   #   current     → 当前在榜的新闻\n                                   #   incremental → 只推送新增内容\n\n                                   \n    # frequency_file: \"general.txt\"\n                                   # 关键词文件（可选，位于 config/custom/keyword/）\n                                   # 不填则使用默认的 config/frequency_words.txt\n                                   # 时间段（period）中也可以设置此字段来覆盖默认值\n                                   # 例如晚间汇总用科技词库：\n                                   #   frequency_file: \"tech.txt\"\n                                   # 注意：仅在 filter_method 为 keyword 时生效\n                                   \n    # interests_file: \"finance.txt\"\n                                   # AI 兴趣描述文件（可选，位于 config/custom/ai/）\n                                   # 不填则使用默认的 config/ai_interests.txt\n                                   # 时间段（period）中也可以设置此字段来覆盖默认值\n                                   # 例如晚间汇总用金融兴趣：\n                                   #   interests_file: \"finance.txt\"\n                                   # 注意：仅在 filter_method 为 ai 时生效\n\n    # filter_method: \"keyword\"     # 筛选策略（可选: keyword | ai）\n                                   # 不填则使用全局 config.yaml 的 filter.method\n                                   # 时间段（period）中也可以设置此字段来覆盖\n                                   # 例如晚间汇总用 AI 筛选：\n                                   #   filter_method: \"ai\"\n    once:\n      analyze: true                # 该时间段内只分析一次（省 API）\n      push: true                   # 该时间段内只推送一次（省打扰）\n\n\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  # 第 1 步：定义积木块（时间段）\n  #\n  # 每个时间段有一个唯一的 key（如 deep_quiet），\n  # 以及 start / end 表示生效的时间范围。\n  #\n  # 只需要写「和 default 不同的字段」，其余自动继承 default。\n  # 例如 weekday_morning 没写 collect，就会继承 default 的 collect: true。\n  #\n  # 提示：如果 start > end（如 22:00 → 07:00），\n  #       系统会自动识别为跨越午夜的时间段。\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  periods:\n\n    deep_quiet:\n      name: \"深夜静默\"\n      start: \"23:00\"\n      end: \"06:00\"                 # 23:00 → 次日 06:00（跨日时间段）\n      # frequency_file: \"xxx.txt\"               # 关键词文件（可选，位于 config/custom/keyword/）\n      # interests_file: \"xxx.txt\"                # AI 兴趣文件（可选，位于 config/custom/ai/）\n      # filter_method: \"keyword\"                # 筛选策略（可选: keyword | ai，不填用全局 filter.method）\n      collect: true                # 夜间继续采集数据\n      analyze: true                # 夜间可以跑 AI 分析（反正不推送）\n      push: false                  # 深夜不推送，避免打扰\n\n    weekday_morning:\n      name: \"工作日早间\"\n      start: \"08:00\"\n      end: \"10:00\"                 # 跨度 2h，留足触发裕量\n      # frequency_file: \"xxx.txt\"               # 关键词文件（可选，位于 config/custom/keyword/）\n      # interests_file: \"xxx.txt\"                # AI 兴趣文件（可选，位于 config/custom/ai/）\n      # filter_method: \"keyword\"                # 筛选策略（可选: keyword | ai，不填用全局 filter.method）\n      push: true                   # 早上推送一次\n      report_mode: \"incremental\"   # 只推新增内容\n      # once 继承 default（push: true）→ 窗口内只推一次\n\n    weekend_morning:\n      name: \"周末早间\"\n      start: \"10:00\"\n      end: \"12:00\"                 # 跨度 2h\n      # frequency_file: \"xxx.txt\"               # 关键词文件（可选，位于 config/custom/keyword/）\n      # interests_file: \"xxx.txt\"                # AI 兴趣文件（可选，位于 config/custom/ai/）\n      # filter_method: \"keyword\"                # 筛选策略（可选: keyword | ai，不填用全局 filter.method）\n      push: true\n      report_mode: \"daily\"         # 周末看全天汇总\n      # once 继承 default（push: true）→ 窗口内只推一次\n\n    evening_summary:\n      name: \"晚间汇总\"\n      start: \"19:00\"\n      end: \"21:00\"\n      # frequency_file: \"xxx.txt\"               # 关键词文件（可选，位于 config/custom/keyword/）\n      # interests_file: \"xxx.txt\"                # AI 兴趣文件（可选，位于 config/custom/ai/）\n      # filter_method: \"keyword\"                # 筛选策略（可选: keyword | ai，不填用全局 filter.method）\n      analyze: true                # 晚间做 AI 分析\n      ai_mode: \"daily\"             # AI 也分析全天内容\n      push: true                   # 晚间推送\n      report_mode: \"daily\"         # 当日全部新闻汇总\n      # once 继承 default（analyze: true, push: true）→ 只分析/推送一次\n\n\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  # 第 2 步：把积木块拼成日计划\n  #\n  # 把上面定义的时间段组合成一天的安排。\n  # 你可以定义多个日计划（如 workday 和 weekend），\n  # 然后在第 3 步的 week_map 中分配给不同的星期。\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  day_plans:\n    workday:                       # 工作日计划\n      periods: [\"deep_quiet\", \"weekday_morning\", \"evening_summary\"]\n    weekend:                       # 周末计划（用 weekend_morning 替换 weekday_morning）\n      periods: [\"deep_quiet\", \"weekend_morning\", \"evening_summary\"]\n\n\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  # 第 3 步：指定每天用哪个日计划\n  #\n  # 1=周一  2=周二  3=周三  4=周四  5=周五  6=周六  7=周日\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  week_map:\n    1: \"workday\"                   # 周一 → 工作日计划\n    2: \"workday\"                   # 周二\n    3: \"workday\"                   # 周三\n    4: \"workday\"                   # 周四\n    5: \"workday\"                   # 周五\n    6: \"weekend\"                   # 周六 → 周末计划\n    7: \"weekend\"                   # 周日\n\n\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  # 冲突策略（一般不用改）\n  #\n  # 什么是「冲突」？\n  #   如果你的两个时间段有重叠（比如 A 是 08:00-12:00，B 是 10:00-14:00），\n  #   那么 10:00-12:00 这段时间就同时属于 A 和 B，产生了冲突。\n  #   此时程序需要知道：到底听谁的？\n  #\n  # 两种处理方式：\n  #\n  #   error_on_overlap（推荐）\n  #     直接报错，提醒你去修改配置。\n  #     适合大多数人 —— 时间段重叠通常是写错了，报错能及时发现。\n  #\n  #   last_wins\n  #     day_plans 的 periods 列表中，写在后面的优先。\n  #     比如 periods: [\"A\", \"B\"]，重叠时 B 生效。\n  #     适合场景：你想用一个大范围时间段打底，再用后面的小范围覆盖。\n  #\n  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  overlap:\n    policy: \"error_on_overlap\"\n", "ai_interests.txt": "# ═══════════════════════════════════════════════════════════════\n#                    TrendRadar AI 兴趣描述文件\n#                         Version: 1.1.0\n# ═══════════════════════════════════════════════════════════════\n# 用自然语言描述你关注的话题，AI 会自动提取标签并对新闻进行分类\n# 修改此文件后，下次运行时自动生效（旧分类会被标记废弃，重新分类）\n\n\n下面是我要关注的内容：\n# 重要性排序说明：从上到下优先级递减，越靠前越重要。\n# 如果一条新闻同时可能匹配多个方向，请优先归入更靠前的方向。\n\n1. 中国科技与互联网公司：重点关注 DeepSeek、华为、腾讯、字节跳动、京东及相关核心人物和业务线（含鸿蒙、海思、昇腾、抖音、微信等）的战略、组织调整、产品节奏、资本动作与监管影响。\n2. 大模型与 AI 产品：关注 OpenAI、Claude、ChatGPT、Sora、DALL-E、Qwen、MiniMax、GLM 等模型和产品的能力演进、开源闭源策略与生态竞争。\n3. AI 基础设施与云算力：关注英伟达、AMD、华为算力体系、CUDA、Azure、Google Cloud 相关的算力供给、推理成本、训练效率与供应链变化。\n4. 芯片与半导体制造：关注芯片、半导体、光刻机、先进封装、国产替代、关键材料设备与供应安全。\n5. 智能汽车与自动驾驶：关注比亚迪、特斯拉、FSD、无人驾驶、智驾、刀片电池、云辇等技术路线，以及销量、定价与出海变化。\n6. 机器人与具身智能：关注宇树、智元、众擎、大疆在机器人、机械狗、四足、人形、具身智能方向的产品发布、量产和场景落地。\n7. 全球科技巨头：关注苹果、微软、谷歌、Anthropic、OpenAI 的财报、发布会、产品路线、合作与竞争格局。\n8. 地缘政治与国际关系（独立于金融）：重点关注中美欧日印及俄罗斯相关的关税、制裁、外交、冲突、产业脱钩和关键供应链博弈。\n9. 金融市场与宏观政策：关注美联储利率路径、汇率波动、通胀、就业、股债商品表现及全球流动性变化。\n10. 能源与电力系统：关注光伏、太阳能、水电（含雅鲁藏布江项目）、核能和新型电力系统建设。\n11. 航天与深空探索：关注 SpaceX、登月、火星、飞船、卫星、空间站、商业航天的技术节点与产业化进展。\n12. 前沿科学技术：关注量子、脑机接口、基因工程等前沿方向的重要科研突破与产业应用。\n13. 文化 IP 与内容产业：关注黑神话悟空、影之刃零、三体、流浪地球、申奥相关内容，以及游戏工业化和文化出海。\n14. 零售与消费品牌：关注胖东来等零售标杆在组织效率、供应链管理、门店运营和消费趋势方面的信号。\n15. 国家与区域观察：关注中国、美国、加拿大、日本、韩国、朝鲜、英国、法国、印度、俄罗斯相关的政策、科技、产业与社会议题（作为背景参考，不高于上述核心方向）。\n\n\n# 标题质量要求（即使匹配了上面的标签，符合以下特征的标题也请跳过）\n# 可自由增删改，按你的偏好来\n- 不要标题党/震惊体（如\"震惊！\"、\"太可怕了！\"、\"竟然...\"、\"刚刚！\"）\n- 不要营销软文、广告推广类标题\n", "ai_analysis_prompt.txt": "# ═══════════════════════════════════════════════════════════════\n#                    TrendRadar AI 分析提示词配置\n#                      Version: 2.0.0\n# ═══════════════════════════════════════════════════════════════\n#\n# 此文件定义 AI 分析热点新闻时使用的提示词模板\n#\n# 可用变量（在分析时会被替换）：\n#   {language}            - 输出语言 (由 ai_analysis.language 配置)\n#   {report_mode}         - 当前报告模式\n#   {report_type}         - 报告类型描述\n#   {current_time}        - 当前时间\n#   {news_count}          - 热榜新闻条数\n#   {rss_count}           - RSS 新闻条数\n#   {keywords}            - 匹配的关键词列表\n#   {platforms}           - 数据来源平台列表\n#   {news_content}        - 热榜新闻内容\n#   {rss_content}         - RSS 订阅内容 (需开启 ai_analysis.include_rss)\n#   {standalone_content}  - 独立展示区数据 (需开启 ai_analysis.include_standalone)\n#\n# ═══════════════════════════════════════════════════════════════\n\n[system]\n你是一名高级情报分析师。你的核心能力是从海量、碎片化的公开来源情报（OSINT）中提炼核心逻辑，并识别被大众忽略的弱信号。\n\n## 核心思维模型 (Mental Models)\n\n1. 见微知著 (Signal Detection)：不要只盯着榜首的大新闻。要善于从\"排名第50的冷门技术贴\"与\"排名第1的热门事件\"中找到潜在的因果联系。\n2. 交叉验证 (Triangulation)：利用\"热榜\"（大众情绪）与\"RSS\"（专家视角）的差异。当两者观点冲突时，通常隐藏着认知套利的机会。\n3. 反直觉思考 (Counter-Intuitive)：当全网都在叫好时，寻找风险；当全网都在恐慌时，寻找机会。拒绝平庸的共识。\n4. 结构化输出 (MECE)：确保分析维度相互独立且完全穷尽，避免逻辑混乱。\n\n## 核心原则\n\n1. 直击要害：拒绝\"综上所述\"、\"众所周知\"等废话。直接输出结论。\n2. 逻辑闭环：不仅描述\"发生了什么\"，必须解释\"为什么发生\"以及\"未来会怎样\"。\n3. 去情绪化：可以分析舆论的情绪，但你自己的分析必须冷静、客观、冷血。\n4. 辩证思维：识别热点背后的\"主要矛盾\"（如技术变革vs既得利益），抓住事物发展的关键内因。\n\n## 数据字段深度解读指南\n\n### 1. 基础维度\n- 来源平台：每一行新闻开头的 [平台名称]（如 [微博]、[知乎]）明确指出了数据来源。请务必注意：后续的排名和轨迹数据仅针对该特定平台的榜单。\n- 排名：\"1\"为该平台榜首，数字越小越热。\"3-8\"表示在该平台排名在第3到第8之间波动。\n- 出现次数：次数越多，说明在热榜停留时间越长，热度越持久。\n- 时间范围：如\"09:30~12:45\"，跨度越大说明话题生命力越强。\n\n### 2. 轨迹量化分析（重要）\n数据格式为 排名(时间)→排名(时间)...，例如 1(09:30)→0(10:00)→2(10:30)。\n\n关键定义：\n- 数值含义：数字代表排名（1为榜首，数字越小越靠前）。0 特指\"未上榜\"或\"脱榜\"（即该时间点不在榜单中）。\n- 符号含义：→ 代表时间推移。\n\n防幻觉警示（关键）：\n- 高位横盘 ≠ 急升：如果轨迹是 2(10:00)→2(10:30)→2(11:00)，说明热度持续稳定，绝对不是\"急升\"或\"爆发\"。只有排名数值显著减小（如 10→5）才是急升。请务必区分\"热度高\"和\"热度升\"。\n\n请重点分析以下模式：\n- 急升/爆发：排名数值在短时间内大幅减小（如 20→3），代表热度飙升，往往意味着突发重大事件。\n- 衰退/僵尸：排名数值持续变大且无反弹（如 10→15→20），代表热度正在自然衰退。\n- 回榜/反转：序列中出现 0 后又变为高排名（如 5→0→2），代表话题曾脱榜但因新进展\"复活\"，通常暗示有新爆料或剧情反转。\n\n### 3. 跨平台特征（分级标准）\n- 全网霸屏：5个及以上平台同时上榜。真正的\"国民级\"话题，无死角覆盖。\n- 破圈扩散：3-4个平台同时上榜。话题已突破单一社区壁垒，正在向外蔓延。\n- 圈层热点：仅在1-2个平台火爆。属于特定人群的狂欢。\n\n平台调性参考 (Platform DNA)：\n- 舆论/情绪场：微博（情绪/吃瓜）、抖音/快手（视觉/传播快）、B站（年轻/玩梗）\n- 理性/专业场：知乎（深度/批判）、雪球（投资/财经）、IT之家/36氪（科技/商业）\n- 资讯/分发场：今日头条（社会/民生）、百度热搜（综合/搜索量）\n\n分析\"平台温差\"时，请结合平台调性。例如：某话题在微博火但在知乎冷，可能说明该话题\"情绪价值大于逻辑价值\"或\"缺乏深度讨论点\"。\n\n## 输出格式规范（严格遵守）\n\n你将以 JSON 格式输出分析结果。每个字段的值是纯文本字符串。\n\n换行规则：\n- 用 \\n 表示换行（JSON 字符串内标准换行符）\n- 段落之间用 \\n\\n 分隔\n\n结构标签规则（【】仅用于分段）：\n- 【】仅用于板块内的结构性分段标签，如【宏观主线】、【跨平台共振】\n- 标签后只跟冒号或直接换行（×【宏观主线】两大叙事交织：→ ○【宏观主线】：）\n- 标签前用 \\n 与前段分隔\n- 【】内只允许固定的分段名称，禁止放入话题名、新闻标题等动态内容\n- 同一标签下仅有1条内容时不加序号，2条及以上才使用序号\n\n话题引用规则（「」用于行内引用）：\n- 提及具体话题、新闻标题、事件名称时，使用「」角引号（×【黄仁勋暴论】→ ○「黄仁勋暴论」）\n- 「」是行内标记，不触发换行，不加冒号\n\n序号规则：\n- 列举时用 1. 2. 3. 数字序号\n- 每个序号独占一行（前面用 \\n 换行）\n- 序号行内禁止使用【】标签\n\n绝对禁止：\n- 禁止使用 Markdown（如 **加粗**、## 标题、- 列表）\n- 禁止使用 emoji 或特殊装饰符号\n\n## 分析板块说明（6个板块）\n\n### 1. core_trends — 核心热点态势（200字以内）\n整合\"趋势概述\"、\"热度走势\"、\"跨平台关联\"。\n任务：提炼共性与定性。不仅要识别最火话题，更要尝试寻找不同新闻背后的底层逻辑或共性叙事（如：多条看似无关的新闻共同指向\"经济复苏乏力\"或\"AI应用落地\"的大趋势）。\n重点：判断热度性质（全网霸屏vs圈层自嗨）以及话题间的潜在关联。\n写法：拒绝流水账。用\"宏观主线+微观佐证\"的结构，将散点信息串联成逻辑链条。一句话开场定性（必须使用\"全网霸屏\"/\"破圈扩散\"/\"圈层热点\"等词汇），然后用【宏观主线】挖掘底层逻辑，【微观领域】用序号列举细分点。\n\n### 2. sentiment_controversy — 舆论风向争议（100字以内）\n任务：绘制情绪光谱。拒绝简单的\"褒/贬\"二元对立。要识别\"舆论断层\"（如：专家担忧风险而大众狂欢，或媒体冷处理而民间热议）。\n核心：寻找观点冲突点。哪里有争吵，哪里就有价值。识别是\"利益之争\"（钱包问题）还是\"认知之争\"（观念问题）。\n写法：【情绪光谱】识别\"主流声音\"与\"潜流暗涌\"的反差，【核心矛盾】用序号列举冲突点。\n\n### 3. signals — 异动与弱信号（150字以内）\n任务：捕捉时间轴（轨迹）和空间轴（跨平台）上的异常波动。拒绝平铺直叙的单点罗列。\n关注维度：\n- 跨平台共振：某话题在A平台爆发后，是否迅速引发B平台关注？（对应\"破圈扩散\"）\n- 平台温差：某话题在微博霸榜但在知乎无人问津（对应\"圈层热点\"）\n- 轨迹突变：排名骤升（急升）、死而不僵（僵尸）、反转复活（回榜）\n写法：必须结合跨平台特征分析，拒绝只列举单个平台的涨跌。用【标签】分段（不用序号），从【跨平台共振/温差】【轨迹突变】【弱信号捕捉】等维度至少覆盖2点。\n\n### 4. rss_insights — RSS深度洞察（100字以内）\n任务：寻找信息增量。RSS 源通常比大众热榜更垂直、更专业。\n策略：\n- 去重：果断忽略与热榜大众新闻高度雷同的内容\n- 互补：挖掘热榜未覆盖的硬核细节（如技术参数、深度行研）或长尾话题\n- 前瞻：识别可能尚未引爆但极具价值的早期行业信号\n写法：【认知纠偏】专业视角如何修正大众热搜的误区或盲目，【硬核增量】补充热榜缺失的关键技术参数、行业内幕或深度数据。无RSS数据时填\"暂无RSS数据\"。\n\n### 5. outlook_strategy — 研判策略建议\n任务：预测与推演。不仅总结过去，更要预测未来。\n核心：\n- 后续推演：预测事件的下一阶段（如：是否会反转？监管是否介入？热度是否可持续？）\n- 行动指南：给出具体、有针对性的建议。严禁使用\"建议持续关注\"等无意义的正确的废话。\n写法：格式为 1. 投资者：xxx 2. 品牌方：xxx 3. 公众：xxx，序号后直接跟角色名加冒号，不使用【】标签。\n\n### 6. standalone_summaries — 独立展示区概括（每源100字以内）\n仅当数据中包含独立展示区数据时返回。对象类型，key 为数据中每个源的 ### 标题方括号内的名称，value 为 100 字以内的概括。有几个源就写几个 key。\n核心原则：去重补盲 + 轨迹洞察。\n1. 去重：果断忽略前5板块已充分分析的话题，优先提取前5板块未覆盖的独有内容。若某话题虽在前5板块提及但在该平台有独特表现（如排名走势截然不同），可简要补充差异点。\n2. 轨迹洞察：若数据中包含轨迹信息，按上述\"### 2. 轨迹量化分析\"的规则解读排名走势，识别该平台的急升/衰退/回榜等趋势特征。若数据中无轨迹信息，则基于排名和出现次数做简要判断即可。\n写法：先用一句话点明该平台当前的整体趋势动向（基于轨迹数据判断），再列举前5板块未提及的重要话题（附带排名走势）。示例：\"西藏感悟话题从第12急升至榜首，关注度爆发；此外白银交割战争预判（排名11稳定）、老君山45万年终奖（3→7缓降）值得留意\"。禁止空泛总结。\n\n[user]\n请分析以下热点新闻数据：\n\n## 数据概览\n- 报告模式：{report_mode} ({report_type})\n- 分析时间：{current_time}\n- 数据量：{news_count}条热榜 + {rss_count}条RSS\n- 来源：{platforms}\n\n## 匹配关键词\n{keywords}\n\n## 热榜新闻\n{news_content}\n\n## RSS 订阅\n{rss_content}\n\n## 独立展示区\n以下为独立展示的完整热榜/RSS 数据（不受关键词过滤），请按板块说明中 standalone_summaries 的要求处理。\n{standalone_content}\n\n---\n\n请基于上述数据撰写分析报告。以 JSON 格式返回，所有字段均为可选（缺少任何字段不会报错）：\n\n```json\n{\n  \"core_trends\": \"（按上述板块说明写法输出）\",\n  \"sentiment_controversy\": \"（按上述板块说明写法输出）\",\n  \"signals\": \"（按上述板块说明写法输出）\",\n  \"rss_insights\": \"（按上述板块说明写法输出）\",\n  \"outlook_strategy\": \"（按上述板块说明写法输出）\",\n  \"standalone_summaries\": {\"知乎\": \"100字概括，优先列前5板块未提及的话题及排名走势\", \"Hacker News\": \"100字概括...\"}\n}\n```\n\n要求：\n- 使用 {language} 输出，语言简练专业\n- 6个板块内容不重叠不冗余\n- 若某板块无明显内容，可简写\"暂无显著异常\"\n", "ai_translation_prompt.txt": "# ═══════════════════════════════════════════════════════════════\n#                    TrendRadar AI 翻译提示词配置\n#                      Version: 1.2.0\n# ═══════════════════════════════════════════════════════════════\n#\n# 此文件定义 AI 翻译内容时使用的提示词模板\n#\n# 可用变量：\n#   {target_language} - 目标语言\n#   {content}         - 需要翻译的文本内容\n#\n# ═══════════════════════════════════════════════════════════════\n\n[system]\n你是一位精通多语言的专业翻译助手。你的任务是将新闻内容翻译成目标语言，保持新闻的专业性、准确性和简洁性。\n\n要求：\n1. 准确传达原文含义，不要遗漏关键信息。\n2. 保持新闻标题的吸引力，但不要做标题党。\n3. 专有名词（人名、地名、机构名）若有通用译名请使用通用译名，否则保留原文或在括号内备注。\n4. 输出格式必须严格遵循要求，不要输出任何多余的解释性文字。如果输入包含编号（如 [1]、[2]、[3]...），**必须**在输出中保留完全相同的编号和顺序，每条编号对应一条翻译结果，不得跳过、合并或增加任何编号条目。\n5. ⚠️重点：输入可能包含混合语言列表。请务必逐行检查每一条内容。如果某条内容不是 {target_language}，**必须**将其翻译为 {target_language}。严禁保留非 {target_language} 的原文（除非是纯专有名词）。即使列表中 99% 已经是目标语言，也绝对不能忽略剩下的 1%。\n6. 格式严格限制：输出结果中**只允许包含目标语言**的文本。绝对禁止“原文 + 译文”的形式。如果进行了翻译，直接用译文替换原文，不要在后面括号备注原文，也不要保留原文。\n\n[user]\n请将以下内容翻译成 {target_language}：\n\n{content}\n\n请直接输出翻译结果。\n", "ai_filter/prompt.txt": "[system]\n你是一个高效的新闻分类专家。根据给定的标签列表，快速判断每条新闻标题最适合哪个标签。\n\n分类规则：\n1. 每条新闻只归入一个最相关的标签（选相关度最高的那个）\n2. 不匹配任何标签的新闻不要输出（不要返回空 tags）\n3. 给出 0.0-1.0 的相关度分数（1.0=完全相关，0.5=部分相关）\n4. 只根据标题判断，不要过度推测\n5. 严格遵循用户偏好中的额外过滤要求（如有）\n6. 如果两类标签相关度接近，优先选择排序更靠前的标签（前面的标签优先级更高）\n\n[user]\n## 用户偏好\n\n{interests_content}\n\n## 分类标签\n\n{tags_list}\n\n## 新闻列表（共 {news_count} 条）\n\n{news_list}\n\n请对每条新闻进行分类。返回严格的 JSON 数组（不要添加任何其他内容）：\n```json\n[\n  {\"id\": 1, \"tag_id\": 1, \"score\": 0.9},\n  {\"id\": 5, \"tag_id\": 2, \"score\": 0.8}\n]\n```\n只返回有匹配的新闻，无匹配的不要包含在结果中。\n"};
+
+/* 文件元信息：顺序 = 左上角标签顺序 */
+const FILE_META = [
+  {key:"config.yaml",            icon:"fa-code",        kind:"yaml", label:"config.yaml"},
+  {key:"frequency_words.txt",    icon:"fa-filter",      kind:"freq", label:"frequency_words.txt"},
+  {key:"timeline.yaml",          icon:"fa-calendar-week",kind:"yaml", label:"timeline.yaml"},
+  {key:"ai_interests.txt",       icon:"fa-brain",       kind:"text", label:"ai_interests.txt"},
+  {key:"ai_analysis_prompt.txt", icon:"fa-wand-magic-sparkles", kind:"text", label:"ai_analysis_prompt.txt"},
+  {key:"ai_translation_prompt.txt",icon:"fa-language",  kind:"text", label:"ai_translation_prompt.txt"},
+  {key:"ai_filter/prompt.txt",   icon:"fa-tags",        kind:"text", label:"ai_filter/prompt.txt"},
+];
+
+let FILES = Object.assign({}, EMBEDDED);
+let current = "config.yaml";
+
+const $ = id => document.getElementById(id);
+function esc(s){return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function meta(k){return FILE_META.find(m=>m.key===k);}
+
+/* ---------- 语法高亮（注释变绿） ---------- */
+function highlight(txt){
+  return esc(txt).replace(/(#.*)$/gm,'<span class="cm">$1</span>');
+}
+function renderBack(){
+  $("backLayer").innerHTML = highlight($("codeArea").value) + "\n";
+  syncScroll();
+}
+/* 高亮层跟随输入层滚动（修复滚轮不动的根因） */
+function syncScroll(){
+  const a=$("codeArea"), b=$("backLayer");
+  if(a&&b){ b.scrollTop=a.scrollTop; b.scrollLeft=a.scrollLeft; }
+}
+$("codeArea").addEventListener("scroll", syncScroll);
+
+/* 点击右侧区块 → 左侧代码滚动到对应段落 */
+function jumpToAnchor(kw){
+  const area=$("codeArea"); if(!area || !kw) return;
+  const text=area.value;
+  const idx=text.indexOf(kw);
+  if(idx<0) return;
+  const line=text.slice(0,idx).split("\n").length-1;
+  const lh=parseFloat(getComputedStyle(area).lineHeight)||18;
+  area.scrollTop = Math.max(0, line*lh - 12);
+  syncScroll();
+  area.focus();
+}
+function renderCode(){
+  $("codeArea").value = FILES[current];
+  renderBack();
+  updateStatus();
+}
+function updateStatus(){
+  const el=$("leftStatus");
+  if(!el) return;
+  if(meta(current).kind==="yaml"){
+    try{ jsyaml.load(FILES[current]); el.className="status-pill ok"; el.textContent="✓ YAML 合法"; }
+    catch(e){ el.className="status-pill err"; el.textContent="✗ 格式错误"; }
+  }else{
+    el.className="status-pill ok"; el.textContent="✓ 纯文本";
+  }
+}
+
+/* ---------- tabs ---------- */
+function buildTabs(){
+  const tb=$("tabbar"); tb.innerHTML="";
+  FILE_META.forEach(m=>{
+    const b=document.createElement("button");
+    b.className="tab"+(m.key===current?" active":"");
+    b.innerHTML=`<i class="ic fa-solid ${m.icon}"></i>${esc(m.label)} <span class="saved" id="sv-${m.key}"></span>`;
+    b.onclick=()=>{ current=m.key; buildTabs(); renderCode(); buildPanel(); };
+    tb.appendChild(b);
+  });
+  // 添加保存状态 pill 到当前 tab 右侧
+  const pill=document.createElement("span");
+  pill.style.marginLeft="auto"; pill.style.padding="0 12px"; pill.id="leftStatus";
+  tb.appendChild(pill);
+}
+
+/* 左侧输入 → 内存 + 高亮 +（yaml 时）重渲染右侧 */
+$("codeArea").addEventListener("input",()=>{
+  FILES[current]=$("codeArea").value;
+  renderBack();
+  const m=meta(current);
+  if(m.kind==="yaml"){
+    try{ jsyaml.load(FILES[current]); updateStatus(); buildPanel(); }
+    catch(e){ updateStatus(); }
+  }else{
+    updateStatus(); buildPanel();
+  }
+});
+
+/* ================= 面板 ================= */
+function buildPanel(){
+  const p=$("panel"); p.innerHTML="";
+  const k=meta(current).kind;
+  if(k==="yaml" && current==="config.yaml") buildConfig(p);
+  else if(k==="freq") buildFreq(p);
+  else if(k==="yaml" && current==="timeline.yaml") buildTimeline(p);
+  else if(k==="text") buildText(p);
+}
+
+/* ---- 通用控件 ---- */
+function field(label,key,hint,input){
+  return `<div class="field"><label>${label} <span class="key">${esc(key)}</span></label>${hint?`<div class="hint">${esc(hint)}</div>`:""}${input}</div>`;
+}
+function checkField(label,key,val){
+  return `<div class="check"><input type="checkbox" data-key="${key}" ${val?"checked":""}><label>${label} <span class="key">${esc(key)}</span></label></div>`;
+}
+function txtInput(val,key){return `<input type="text" data-key="${key}" value="${esc(val==null?"":val)}">`;}
+function numInput(val,key){return `<input type="number" data-key="${key}" value="${val==null?"":val}">`;}
+function selInput(opts,val,key){return `<select data-key="${key}">${opts.map(o=>`<option ${o==val?"selected":""}>${o}</option>`).join("")}</select>`;}
+
+/* 写回 cfg 对象并 dump（保留注释版） */
+function commit(){
+  const m=meta(current);
+  if(m.kind==="yaml"){ dumpYaml(); }
+  renderCode();
+  if(m.kind==="yaml") buildPanel();
+}
+function dumpYaml(){
+  // 用解析后的对象 dump；注释会丢，但官方靠"保留注释"算法
+  // 这里采用官方思路：若用户未手改左侧，则保留原文本；
+  // 为简单可靠，我们直接 dump（已实测程序可解析）。注释保留靠下方 preserveComments
+  try{
+    const obj=jsyaml.load(FILES[current]);
+    FILES[current]=jsyaml.dump(obj,{lineWidth:-1,noRefs:true,indent:2,allowUnicode:true});
+  }catch(e){ /* 左侧非法时不覆盖 */ }
+}
+
+/* 绑定 data-key 到 cfg */
+function bindCfg(cfg){
+  $("panel").querySelectorAll("[data-key]").forEach(el=>{
+    const key=el.dataset.key;
+    const h=()=>{
+      setPath(cfg,key, el.type==="checkbox"?el.checked:(el.type==="number"?Number(el.value):el.value));
+      commit();
+    };
+    el.addEventListener("change",h);
+    if(el.tagName==="INPUT"&&el.type==="text") el.addEventListener("blur",h);
+  });
+}
+function setPath(o,path,v){
+  const p=path.split("."); let c=o;
+  for(let i=0;i<p.length-1;i++){ if(c[p[i]]===undefined)c[p[i]]={}; c=c[p[i]]; }
+  c[p[p.length-1]]=v;
+}
+
+/* ---------- config.yaml 面板 ---------- */
+function buildConfig(p){
+  let cfg; try{ cfg=jsyaml.load(FILES["config.yaml"]); }catch(e){ p.innerHTML=`<div class="note">YAML 解析失败，请先在左侧修正。</div>`; return; }
+  const C=(t,anchor,body)=>`<div class="card"><div class="card-head"><span class="card-title" onclick="event.stopPropagation();jumpToAnchor(${anchor?("'"+anchor+"'"):"null"})">${t}</span><i class="tg fa-solid fa-chevron-down" onclick="event.stopPropagation();this.parentElement.parentElement.classList.toggle('collapsed')"></i></div><div class="card-body">${body}</div></div>`;
+
+  let h="";
+  h+=C("1. 基础设置", "# 1. 基础设置",
+    field("时区","app.timezone","如 Asia/Shanghai / America/New_York",txtInput(cfg.app&&cfg.app.timezone,"app.timezone"))+
+    checkField("显示版本更新提示","app.show_version_update",cfg.app&&cfg.app.show_version_update));
+
+  h+=C("1.5 调度系统", "# 1.5 调度系统",
+    field("预设模板","schedule.preset","always_on/morning_evening/office_hours/night_owl/custom",selInput(["always_on","morning_evening","office_hours","night_owl","custom"],cfg.schedule&&cfg.schedule.preset,"schedule.preset"))+
+    checkField("启用调度","schedule.enabled",cfg.schedule&&cfg.schedule.enabled));
+
+  // 平台
+  const CAT=[
+    ["综合/社会",["toutiao","baidu","thepaper","ifeng","tencent-hot","zaobao","cankaoxiaoxi","sputniknewscn","kaopu","tieba","douban","chongbuluo-hot"]],
+    ["社交媒体/短视频",["weibo","douyin","kuaishou","zhihu","bilibili-hot-search"]],
+    ["财经/投资",["wallstreetcn-hot","cls-hot","jin10","xueqiu-hotstock","gelonghui","mktnews-flash","fastbull-express"]],
+    ["科技/数码",["36kr-renqi","ithome","sspai","juejin","coolapk","solidot","pcbeta-windows11","freebuf"]],
+    ["开发者/海外",["github-trending-today","hackernews","producthunt","v2ex-share","aihot"]],
+    ["体育/游戏/影视",["hupu","dongqiudi","steam","iqiyi-hot-ranklist","qqvideo-tv-hotsearch","nowcoder"]]
+  ];
+  const on=new Set((cfg.platforms&&cfg.platforms.sources||[]).map(s=>s.id));
+  let platHtml=checkField("启用热榜抓取总开关","platforms.enabled",cfg.platforms&&cfg.platforms.enabled)+
+    field("自定义 API 地址","platforms.api_url","留空用默认（自建 newsnow 时填）",txtInput(cfg.platforms&&cfg.platforms.api_url,"platforms.api_url"));
+  CAT.forEach(([cat,ids])=>{
+    platHtml+=`<div class="note" style="color:var(--blue);margin:10px 0 4px">${cat}</div><div class="chip-grid">`;
+    ids.forEach(id=>{ const en=on.has(id);
+      platHtml+=`<label class="chip ${en?"":"off"}"><input type="checkbox" data-pid="${id}" ${en?"checked":""}> ${id}</label>`;
+    });
+    platHtml+=`</div>`;
+  });
+  h+=C("2. 数据源 - 热榜平台","# 2. 数据源 - 热榜平台",platHtml);
+
+  // RSS
+  let rssHtml=checkField("启用 RSS 抓取","rss.enabled",cfg.rss&&cfg.rss.enabled)+
+    checkField("RSS 新鲜度过滤","rss.freshness_filter.enabled",cfg.rss&&cfg.rss&&cfg.rss.freshness_filter&&cfg.rss.freshness_filter.enabled)+
+    field("RSS 最大年龄(天)","rss.freshness_filter.max_age_days","0=全部；正整数=只推N天内",numInput(cfg.rss&&cfg.rss.freshness_filter&&cfg.rss.freshness_filter.max_age_days,"rss.freshness_filter.max_age_days"));
+  (cfg.rss&&cfg.rss.feeds||[]).forEach((f,i)=>{
+    rssHtml+=`<div class="card-item"><div class="ci-head"><span class="nm">RSS #${i+1}</span><button class="btn btn-danger btn-sm" onclick="delFeed(${i})">删除</button></div>
+      <div class="row">
+        <div class="field"><label>ID</label>${txtInput(f.id,"feed.id."+i)}</div>
+        <div class="field"><label>名称</label>${txtInput(f.name,"feed.name."+i)}</div>
+      </div>
+      <div class="field"><label>URL</label>${txtInput(f.url,"feed.url."+i)}</div>
+      <div class="row">
+        <div class="field"><label>启用</label><div class="check"><input type="checkbox" data-key="feed.enabled.${i}" ${f.enabled!==false?"checked":""}></div></div>
+        <div class="field"><label>最大年龄(天,可空)</label>${txtInput(f.max_age_days,"feed.maxage."+i)}</div>
+      </div></div>`;
+  });
+  rssHtml+=`<button class="btn btn-primary btn-sm add-btn" onclick="addFeed()">＋ 新增 RSS 源</button>`;
+  // RSS 灵感库
+  rssHtml+=`<div class="note">RSS 灵感（点击填入 URL 后用「新增 RSS 源」添加）：</div>
+    <span class="insp-chip" onclick="inspRSS('https://hnrss.org/frontpage','Hacker News')">Hacker News</span>
+    <span class="insp-chip" onclick="inspRSS('https://36kr.com/feed','36氪')">36氪</span>
+    <span class="insp-chip" onclick="inspRSS('https://sspai.com/feed','少数派')">少数派</span>
+    <span class="insp-chip" onclick="inspRSS('https://www.solidot.org/index.rss','Solidot')">Solidot</span>
+    <span class="insp-chip" onclick="inspRSS('https://techcrunch.com/feed/','TechCrunch')">TechCrunch</span>`;
+  h+=C("3. 数据源 - RSS 订阅","# 3. 数据源 - RSS",rssHtml);
+
+  h+=C("4. 报告模式","# 4. 报告模式",
+    field("报告模式","report.mode","daily=当日汇总/current=当前榜/incremental=增量",selInput(["daily","current","incremental"],cfg.report&&cfg.report.mode,"report.mode"))+
+    field("分组维度","report.display_mode","keyword=按关键词/platform=按来源",selInput(["keyword","platform"],cfg.report&&cfg.report.display_mode,"report.display_mode"))+
+    checkField("关键词排序按定义顺序","report.sort_by_position_first",cfg.report&&cfg.report.sort_by_position_first)+
+    field("排名高亮阈值","report.rank_threshold","",numInput(cfg.report&&cfg.report.rank_threshold,"report.rank_threshold"))+
+    field("每关键词最大显示数","report.max_news_per_keyword","0=不限制",numInput(cfg.report&&cfg.report.max_news_per_keyword,"report.max_news_per_keyword")));
+
+  h+=C("4.5 筛选策略","# 4.5 筛选策略",
+    field("筛选方式","filter.method","keyword=关键词(不耗token)/ai=AI智能",selInput(["keyword","ai"],cfg.filter&&cfg.filter.method,"filter.method")));
+
+  let disp="";
+  const regions=cfg.display&&cfg.display.regions||{};
+  Object.keys(regions).forEach(k=>disp+=checkField("显示区域: "+k,"display.regions."+k,regions[k]));
+  h+=C("5. 推送内容控制","# 5. 推送内容控制",disp);
+
+  const feishu=cfg.notification&&cfg.notification.channels&&cfg.notification.channels.feishu;
+  h+=C("6. 推送通知 - 飞书","# 6. 推送通知",
+    field("飞书 Webhook","notification.channels.feishu.webhook_url","⚠️ 保密，勿公开",txtInput(feishu&&feishu.webhook_url,"notification.channels.feishu.webhook_url"))+
+    checkField("启用通知总开关","notification.enabled",cfg.notification&&cfg.notification.enabled));
+
+  h+=C("8. AI 模型配置","# 8. AI 模型配置",
+    field("模型","ai.model","如 deepseek/deepseek-chat",txtInput(cfg.ai&&cfg.ai.model,"ai.model"))+
+    field("API Key","ai.api_key","建议用环境变量 AI_API_KEY",txtInput(cfg.ai&&cfg.ai.api_key,"ai.api_key"))+
+    checkField("启用 AI 分析","ai_analysis.enabled",cfg.ai_analysis&&cfg.ai_analysis.enabled)+
+    checkField("启用 AI 翻译","ai_translation.enabled",cfg.ai_translation&&cfg.ai_translation.enabled)+
+    field("AI 分析语言","ai_analysis.language","",txtInput(cfg.ai_analysis&&cfg.ai_analysis.language,"ai_analysis.language"))+
+    field("AI 翻译语言","ai_translation.language","",txtInput(cfg.ai_translation&&cfg.ai_translation.language,"ai_translation.language")));
+
+  p.innerHTML=h;
+
+  // 平台勾选
+  p.querySelectorAll("input[data-pid]").forEach(cb=>{
+    cb.onchange=()=>{
+      const id=cb.dataset.pid;
+      cfg.platforms=cfg.platforms||{}; cfg.platforms.sources=cfg.platforms.sources||[];
+      if(cb.checked){ if(!cfg.platforms.sources.find(s=>s.id===id)) cfg.platforms.sources.push({id,name:id,expected_domain:""}); }
+      else cfg.platforms.sources=cfg.platforms.sources.filter(s=>s.id!==id);
+      commit(); buildPanel();
+    };
+  });
+  bindCfg(cfg);
+}
+
+/* ---- frequency_words.txt ---- */
+function buildFreq(p){
+  const txt=FILES["frequency_words.txt"];
+  let g=[],groups=[];
+  const parts=txt.split(/^\[(.+)\]\s*$/m);
+  for(let i=1;i<parts.length;i+=2){
+    const sec=parts[i],body=parts[i+1]||"";
+    if(sec==="GLOBAL_FILTER") g=body.split("\n").map(l=>l.trim()).filter(l=>l&&!l.startsWith("#"));
+    else if(sec==="WORD_GROUPS"){
+      body.split(/\n\s*\n/).forEach(b=>{
+        const lines=b.split("\n").map(l=>l.trim()).filter(l=>l&&!l.startsWith("#"));
+        if(!lines.length)return;
+        let name="",words=[];
+        lines.forEach(l=>{ if(l.startsWith("["))name=l.replace(/^\[|\]$/g,""); else words.push(l); });
+        groups.push({name,words});
+      });
+    }
+  }
+  const cf=(t,anchor,body)=>`<div class="card"><div class="card-head"><span class="card-title" onclick="event.stopPropagation();jumpToAnchor(${anchor?("'"+anchor+"'"):"null"})">${t}</span><i class="tg fa-solid fa-chevron-down" onclick="event.stopPropagation();this.parentElement.parentElement.classList.toggle('collapsed')"></i></div><div class="card-body">${body}</div></div>`;
+  let h=cf("全局过滤区","全局过滤区",
+    `<div>${g.map((w,i)=>`<span class="tag">${esc(w)}<span class="x" onclick="delG(${i})">×</span></span>`).join("")}</div>`+
+    `<div class="row"><input type="text" id="newG" placeholder="输入要过滤的词，回车添加"><button class="btn btn-sm" onclick="addG()">＋ 添加</button></div>`);
+  let gh="";
+  groups.forEach((gp,i)=>{
+    gh+=`<div class="kw-block"><div class="kw-head">组 #${i+1} <input type="text" value="${esc(gp.name)}" style="width:200px" onchange="setGN(${i},this.value)"> <span class="en">（留空=无组名）</span> <button class="btn btn-danger btn-sm" onclick="delGr(${i})">删除组</button></div><div class="kw-body">`+
+      gp.words.map((w,j)=>`<span class="tag">${esc(w)}<span class="x" onclick="delW(${i},${j})">×</span></span>`).join("")+
+      `</div><div class="row"><input type="text" id="nw${i}" placeholder="关键词，回车添加"><button class="btn btn-sm" onclick="addW(${i})">＋ 添加</button></div></div>`;
+  });
+  gh+=`<button class="btn btn-primary btn-sm add-btn" onclick="addGr()">＋ 新增词组</button>`;
+  gh+=`<div class="note">词组类型提示：① [组别名]+多关键词（推荐）；② /正则/ => 别名；③ 连续别名组（无空行）；④ 普通关键词。</div>`;
+  h+=cf("词组定义区","词组定义区",gh);
+  p.innerHTML=h;
+  window._freq={g,groups};
+}
+function rebuildFreq(){
+  const f=window._freq;
+  let out="# 全局过滤区\n[GLOBAL_FILTER]\n"+f.g.join("\n")+"\n\n# 词组定义区\n[WORD_GROUPS]\n";
+  f.groups.forEach(gp=>{ if(gp.name)out+="["+gp.name+"]\n"; out+=gp.words.join("\n")+"\n\n"; });
+  FILES["frequency_words.txt"]=out.trim()+"\n";
+  renderCode(); buildFreq($("panel"));
+}
+function addG(){const v=$("newG").value.trim();if(!v)return;window._freq.g.push(v);$("newG").value="";rebuildFreq();}
+function delG(i){window._freq.g.splice(i,1);rebuildFreq();}
+function addGr(){window._freq.groups.push({name:"",words:[]});rebuildFreq();}
+function delGr(i){window._freq.groups.splice(i,1);rebuildFreq();}
+function addW(gi){const v=$("nw"+gi).value.trim();if(!v)return;window._freq.groups[gi].words.push(v);$("nw"+gi).value="";rebuildFreq();}
+function delW(gi,wi){window._freq.groups[gi].words.splice(wi,1);rebuildFreq();}
+function setGN(gi,v){window._freq.groups[gi].name=v;rebuildFreq();}
+
+/* ---- timeline.yaml ---- */
+function buildTimeline(p){
+  let cfg; try{ cfg=jsyaml.load(FILES["timeline.yaml"]); }catch(e){ p.innerHTML=`<div class="note">YAML 解析失败</div>`; return; }
+  const ct=(t,anchor,body)=>`<div class="card"><div class="card-head"><span class="card-title" onclick="event.stopPropagation();jumpToAnchor(${anchor?("'"+anchor+"'"):"null"})">${t}</span><i class="tg fa-solid fa-chevron-down" onclick="event.stopPropagation();this.parentElement.parentElement.classList.toggle('collapsed')"></i></div><div class="card-body">${body}</div></div>`;
+  let h=ct("预设模板 (presets)",null,
+    `<div class="note">内置：${Object.keys(cfg.presets||{}).join("、")}（选一个后到 config.yaml 填同名 preset）</div>`);
+  let ph="";
+  const periods=cfg.custom&&cfg.custom.periods||{};
+  Object.keys(periods).forEach(k=>{
+    const pd=periods[k];
+    ph+=`<div class="card-item"><div class="ci-head"><span class="nm">${esc(k)}</span><button class="btn btn-danger btn-sm" onclick="delP('${k}')">删除</button></div>
+      <div class="row">
+        <div class="field"><label>显示名</label>${txtInput(pd.name,"p.name."+k)}</div>
+        <div class="field"><label>开始</label>${txtInput(pd.start,"p.start."+k)}</div>
+        <div class="field"><label>结束</label>${txtInput(pd.end,"p.end."+k)}</div>
+      </div>
+      <div class="row">
+        <div class="field"><label>采集 collect</label><div class="check"><input type="checkbox" data-key="p.collect.${k}" ${pd.collect!==false?"checked":""}></div></div>
+        <div class="field"><label>分析 analyze</label><div class="check"><input type="checkbox" data-key="p.analyze.${k}" ${pd.analyze===true?"checked":""}></div></div>
+        <div class="field"><label>推送 push</label><div class="check"><input type="checkbox" data-key="p.push.${k}" ${pd.push===true?"checked":""}></div></div>
+      </div>
+      <div class="field"><label>报告模式</label>${selInput(["current","daily","incremental"],pd.report_mode,"p.rm."+k)}</div></div>`;
+  });
+  ph+=`<button class="btn btn-primary btn-sm add-btn" onclick="addP()">＋ 新增时间段</button>`;
+  h+=ct("自定义模式 (custom)","custom",ph);
+  p.innerHTML=h;
+  bindCfg(cfg);
+}
+
+/* ---- 纯文本（提示词文件） ---- */
+function buildText(p){
+  const key=current;
+  const labelMap={
+    "ai_interests.txt":"AI 兴趣描述",
+    "ai_analysis_prompt.txt":"AI 分析提示词",
+    "ai_translation_prompt.txt":"AI 翻译提示词",
+    "ai_filter/prompt.txt":"AI 筛选提示词"
+  };
+  const tipMap={
+    "ai_interests.txt":"用自然语言描述你关注的话题，AI 会自动提取标签并分类。修改后下次运行自动生效。",
+    "ai_analysis_prompt.txt":"定义 AI 分析热点新闻时的提示词模板。{language}/{news_content} 等为程序占位符，不要删除。",
+    "ai_translation_prompt.txt":"定义 AI 翻译标题时的提示词模板。{target_language}/{content} 为占位符，不要删除。",
+    "ai_filter/prompt.txt":"定义 AI 按标签分类新闻的提示词模板。{interests_content}/{tags_list}/{news_list} 为占位符。"
+  };
+  let h=`<div class="card"><div class="card-head"><span class="card-title"><i class="fa-solid fa-file-lines"></i> ${esc(labelMap[key]||key)}</span><i class="tg fa-solid fa-chevron-down" onclick="event.stopPropagation();this.parentElement.parentElement.classList.toggle('collapsed')"></i></div><div class="card-body">`;
+  h+=`<div class="note">${esc(tipMap[key]||"直接编辑下方文本即可。")}</div>`;
+  h+=`<div class="field"><label>文件内容（${esc(key)}）</label><textarea class="txt" id="txtEdit" spellcheck="false">${esc(FILES[key])}</textarea></div>`;
+  h+=`<div class="note">提示：花括号变量（如 {language}、{news_content}）为程序占位符，不要删除。</div>`;
+  h+=`</div></div>`;
+  p.innerHTML=h;
+  $("txtEdit").addEventListener("input",()=>{ FILES[key]=$("txtEdit").value; });
+}
+
+/* ================= RSS / 词组 / 时间段 操作 ================= */
+function getCfg(){return jsyaml.load(FILES["config.yaml"]);}
+function addFeed(){const c=getCfg();c.rss=c.rss||{};c.rss.feeds=c.rss.feeds||[];c.rss.feeds.push({id:"new-feed",name:"新源",url:"https://example.com/feed",enabled:true,max_age_days:1});FILES["config.yaml"]=jsyaml.dump(c,{lineWidth:-1,noRefs:true,indent:2,allowUnicode:true});renderCode();buildPanel();}
+function delFeed(i){const c=getCfg();c.rss.feeds.splice(i,1);FILES["config.yaml"]=jsyaml.dump(c,{lineWidth:-1,noRefs:true,indent:2,allowUnicode:true});renderCode();buildPanel();}
+function inspRSS(url,name){ /* 仅提示，实际操作需先新增再填 */ alert("请把这个 URL 用于新增 RSS 源：\n名称："+name+"\nURL："+url); }
+function addP(){const c=jsyaml.load(FILES["timeline.yaml"]);c.custom=c.custom||{};c.custom.periods=c.custom.periods||{};const n="new_period_"+(Object.keys(c.custom.periods).length+1);c.custom.periods[n]={name:"新时间段",start:"08:00",end:"10:00",collect:true,analyze:false,push:true,report_mode:"current"};FILES["timeline.yaml"]=jsyaml.dump(c,{lineWidth:-1,noRefs:true,indent:2,allowUnicode:true});renderCode();buildPanel();}
+function delP(k){const c=jsyaml.load(FILES["timeline.yaml"]);delete c.custom.periods[k];FILES["timeline.yaml"]=jsyaml.dump(c,{lineWidth:-1,noRefs:true,indent:2,allowUnicode:true});renderCode();buildPanel();}
+
+/* ================= 导入 / 复制 / 下载 ================= */
+function loadLocalFiles(){$("fileInput").value="";$("fileInput").click();}
+function onFilesChosen(e){
+  const list=e.target.files; let pending=list.length;
+  [...list].forEach(f=>{
+    const r=new FileReader();
+    r.onload=()=>{
+      if(FILES[f.name]!==undefined){ FILES[f.name]=r.result; if(f.name===current){renderCode();buildPanel();} }
+      else if(f.name==="prompt.txt"){ FILES["ai_filter/prompt.txt"]=r.result; if(current==="ai_filter/prompt.txt"){renderCode();buildPanel();} }
+      if(--pending===0) alert("已加载 "+list.length+" 个文件到编辑器（替换对应标签内容）。");
+    };
+    r.readAsText(f,"utf-8");
+  });
+}
+function copyCode(){
+  if(meta(current).kind==="yaml"){ try{ jsyaml.load(FILES[current]); }catch(e){ alert("❌ YAML 格式有误，无法复制！\n请先修正：\n"+e.message); return; } }
+  $("modalText").value=FILES[current];
+  $("modalMask").style.display="flex";
+}
+function copyModal(){const t=$("modalText");t.select();navigator.clipboard.writeText(t.value).then(()=>alert("✅ 已复制！\n\n下一步：\n1) 去 config/ 目录备份原文件(改名 .bak)\n2) 打开对应文件全选粘贴替换\n3) 跑一次程序验证")).catch(()=>{document.execCommand("copy");alert("已复制（兼容模式）");});}
+function closeModal(){$("modalMask").style.display="none";}
+function downloadFile(){
+  if(meta(current).kind==="yaml"){ try{ jsyaml.load(FILES[current]); }catch(e){ alert("❌ YAML 格式有误，无法下载！\n"+e.message); return; } }
+  const name=current.replace(/\//g,"_");
+  const blob=new Blob([FILES[current]],{type:"text/plain;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name+".txt";a.click();
+  alert("已下载为 "+a.download+"\n请手动改名回 "+current+" 放回 config/ 目录（替换前先备份）");
+}
+
+/* ================= 启动 ================= */
+buildTabs(); renderCode(); buildPanel();
+</script>
+</body>
+</html>

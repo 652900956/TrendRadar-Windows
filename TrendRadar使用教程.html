@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrendRadar 完整使用教程（本地 Windows + GitHub Actions + Docker）</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --txt:#e6e8ec; --sub:#9aa3b2;
+    --accent:#4f8cff; --ok:#3ecf8e; --warn:#ffb454; --red:#ff6b6b; --code:#11131a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;line-height:1.7}
+  .wrap{max-width:1000px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:28px;border-bottom:2px solid var(--accent);padding-bottom:12px}
+  h2{font-size:22px;margin-top:46px;color:var(--accent);border-left:4px solid var(--accent);padding-left:12px}
+  h3{font-size:18px;margin-top:30px;color:#cfe0ff}
+  h4{font-size:16px;margin-top:22px;color:#b8d4ff}
+  code{background:var(--code);padding:2px 7px;border-radius:5px;font-family:Consolas,Menlo,monospace;font-size:13px;color:#ffd479}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:16px;overflow:auto;font-size:13px;line-height:1.6}
+  pre code{background:none;padding:0;color:#d6e2ff}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#1f2430;color:#cfe0ff}
+  tr:nth-child(even){background:#14171e}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin:16px 0}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .red{color:var(--red)}
+  .tag{display:inline-block;background:#243044;color:#9ec5ff;border-radius:6px;padding:1px 8px;font-size:12px;margin-right:6px}
+  .step{background:#13251c;border-left:4px solid var(--ok);padding:10px 14px;border-radius:8px;margin:10px 0}
+  .note{background:#241f12;border-left:4px solid var(--warn);padding:10px 14px;border-radius:8px;margin:10px 0}
+  .danger{background:#2b1515;border-left:4px solid var(--red);padding:10px 14px;border-radius:8px;margin:10px 0}
+  ul li{margin:4px 0}
+  .path{color:#7ee0a8}
+  a{color:var(--accent)}
+  .toc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:20px 0}
+  .toc ul{list-style:none;padding-left:0}
+  .toc li{margin:3px 0}
+  .toc a{text-decoration:none;color:var(--txt)}
+  .toc a:hover{color:var(--accent)}
+  .toc .lvl1{font-weight:600;color:var(--accent)}
+  .toc .lvl2{padding-left:18px;font-size:14px;color:var(--sub)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>📡 TrendRadar 完整使用教程</h1>
+<p class="sub">本地 Windows + GitHub Actions 云端 + Docker 三部署方式 · 配置全解 · 生成于 2026-08-24</p>
+
+<div class="card">
+<strong>这份教程能让你：</strong>
+<ol>
+  <li>搞懂 TrendRadar 是干什么的、原理是什么</li>
+  <li>知道三种部署方式该选哪一种（本地 / 云端 / Docker）</li>
+  <li>学会 Windows 下一键运行、定时自动跑</li>
+  <li>看懂并修改 <code>config/config.yaml</code>、<code>config/frequency_words.txt</code>、<code>config/timeline.yaml</code></li>
+  <li>掌握平台配置、RSS、关键词、AI 分析/筛选/翻译、推送渠道、调度系统、MCP、存储、网页报告</li>
+  <li>能自己排查常见问题</li>
+</ol>
+</div>
+
+<div class="toc">
+<ul>
+  <li class="lvl1"><a href="#s1">一、项目是什么 / 核心原理</a></li>
+  <li class="lvl1"><a href="#s2">二、三种部署方式怎么选</a></li>
+  <li class="lvl2"><a href="#s2-1">2.1 方式对比表</a></li>
+  <li class="lvl2"><a href="#s2-2">2.2 磊哥当前状态：本地 Windows 已配好</a></li>
+  <li class="lvl1"><a href="#s3">三、Windows 本地运行（当前主推）</a></li>
+  <li class="lvl2"><a href="#s3-1">3.1 一键双击运行</a></li>
+  <li class="lvl2"><a href="#s3-2">3.2 手动命令运行</a></li>
+  <li class="lvl2"><a href="#s3-3">3.3 Windows 任务计划自动推送</a></li>
+  <li class="lvl1"><a href="#s4">四、GitHub Actions 无服务器部署（备选）</a></li>
+  <li class="lvl2"><a href="#s4-1">4.1 优点与限制</a></li>
+  <li class="lvl2"><a href="#s4-2">4.2 部署步骤</a></li>
+  <li class="lvl2"><a href="#s4-3">4.3 7 天签到机制</a></li>
+  <li class="lvl1"><a href="#s5">五、Docker 部署（服务器/NAS 推荐）</a></li>
+  <li class="lvl1"><a href="#s6">六、配置文件总览</a></li>
+  <li class="lvl1"><a href="#s7">七、config.yaml 详解</a></li>
+  <li class="lvl2"><a href="#s7-1">7.1 热榜平台配置</a></li>
+  <li class="lvl2"><a href="#s7-2">7.2 RSS 订阅配置</a></li>
+  <li class="lvl2"><a href="#s7-3">7.3 筛选方式：关键词 vs AI</a></li>
+  <li class="lvl2"><a href="#s7-4">7.4 AI 模型配置</a></li>
+  <li class="lvl2"><a href="#s7-5">7.5 推送渠道配置</a></li>
+  <li class="lvl2"><a href="#s7-6">7.6 显示区域与推送模式</a></li>
+  <li class="lvl2"><a href="#s7-7">7.7 调度系统 schedule</a></li>
+  <li class="lvl1"><a href="#s8">八、frequency_words.txt 关键词配置</a></li>
+  <li class="lvl1"><a href="#s9">九、timeline.yaml 调度系统</a></li>
+  <li class="lvl1"><a href="#s10">十、AI 功能详解</a></li>
+  <li class="lvl2"><a href="#s10-1">10.1 AI 分析推送</a></li>
+  <li class="lvl2"><a href="#s10-2">10.2 AI 智能筛选</a></li>
+  <li class="lvl2"><a href="#s10-3">10.3 AI 多语言翻译</a></li>
+  <li class="lvl1"><a href="#s11">十一、MCP 对话分析</a></li>
+  <li class="lvl1"><a href="#s12">十二、存储配置</a></li>
+  <li class="lvl1"><a href="#s13">十三、本地可视化配置编辑器</a></li>
+  <li class="lvl1"><a href="#s14">十四、发布网页报告</a></li>
+  <li class="lvl1"><a href="#s15">十五、多机器人 / 多实例说明</a></li>
+  <li class="lvl1"><a href="#s16">十六、故障排查</a></li>
+  <li class="lvl1"><a href="#s17">十七、记忆要点</a></li>
+</ul>
+</div>
+
+<h2 id="s1">一、项目是什么 / 核心原理</h2>
+
+<div class="card">
+<strong>一句话</strong>：TrendRadar 是一个 <b>AI 舆情/热点监控工具</b>——自动抓取各大平台热榜 + RSS 订阅，按你设定的关键词筛选，再用 AI 做分析/翻译，最后推送到飞书/微信/邮件等渠道。
+</div>
+
+<h3>核心原理：广抓取 → 窄筛选 → 增强 → 推送</h3>
+<pre><code>① 抓取层  platforms.sources + rss.feeds
+   └─ 去几十个热榜平台 + RSS 源 拉【全量】数据
+   ↓  （这一步是"广"的，你配的平台全部拉）
+② 筛选层  frequency_words.txt（关键词）或 AI 智能判相关
+   └─ 【只保留命中你关键词】的内容，没命中的直接丢弃，不推送
+   ↓  （这一步是"窄"的，是"推什么"的核心）
+③ 增强层  ai_analysis + ai_translation
+   └─ 对筛出的内容用 DeepSeek 做智能分析 + 多语言翻译
+   ↓
+④ 推送层  notification.channels + display.regions
+   └─ 按配置推到飞书群等渠道，并生成 output/ 下的 HTML 报告
+</code></pre>
+
+<div class="note">
+<strong>关键结论</strong>：抓取是"广"的（你配的平台全拉），<b>推送是"窄"的</b>——只有标题命中你关键词的新闻才会进飞书。<b>不是热榜有啥都推</b>，是你自定义方向命中的才推。
+</div>
+
+<h3>它抓取的是"我自定义的方向"还是"热榜全推"？</h3>
+<table>
+<tr><th>环节</th><th>范围</th><th>由谁控制</th></tr>
+<tr><td>去哪些平台抓</td><td>你列的平台全抓（广）</td><td><code>platforms.sources</code></td></tr>
+<tr><td>最终推什么</td><td>只推命中关键词的（窄）</td><td><code>frequency_words.txt</code> / AI 筛选</td></tr>
+</table>
+
+<h2 id="s2">二、三种部署方式怎么选</h2>
+
+<h3 id="s2-1">2.1 方式对比表</h3>
+<table>
+<tr><th>部署方式</th><th>适合谁</th><th>优点</th><th>缺点</th><th>自动运行靠谁</th></tr>
+<tr><td><b>本地 Windows（当前）</b></td><td>想用现成电脑、不想买服务器</td><td>零服务器成本；文件都在本地；改配置方便</td><td>电脑要开机；需配 Windows 任务计划</td><td>Windows 任务计划程序</td></tr>
+<tr><td><b>GitHub Actions</b></td><td>想云端自动跑、电脑不常开</td><td>不用服务器；GitHub 托管；自动定时</td><td>敏感信息要上云 Secrets；有 7 天签到机制；需 Public 或消耗 Actions 分钟</td><td>GitHub Actions cron</td></tr>
+<tr><td><b>Docker（服务器/NAS）</b></td><td>有 NAS/VPS/长期开机的 Linux</td><td>稳定长期运行；一键 compose up；数据持久化</td><td>需服务器/NAS；对新手略复杂</td><td>容器内 cron</td></tr>
+</table>
+
+<h3 id="s2-2">2.2 磊哥当前状态：本地 Windows 已配好</h3>
+<div class="step">
+你现在的项目已经可以用：双击 <span class="path">运行TrendRadar.bat</span> 就跑一次。<br>
+要让它"到点自动推"，还差最后一步：<b>Windows 任务计划程序</b>。<br>
+GitHub Actions 可以作为<b>备选云端方案</b>，两者可共存，但推同一个群会重复。
+</div>
+
+<h2 id="s3">三、Windows 本地运行（当前主推）</h2>
+
+<h3 id="s3-1">3.1 一键双击运行</h3>
+<div class="step">
+文件位置：<span class="path">D:\Software\EditingTools\Programming\MyProtects\TrendRadar\运行TrendRadar.bat</span><br>
+直接双击即可。它会自动注入 DeepSeek Key、绕过沙箱垫片、运行、跑完暂停。
+</div>
+<div class="note">双击后黑窗口要联网跑 1–3 分钟，<b>别急着关</b>。跑完显示"运行结束，按任意键关闭"。</div>
+
+<h3 id="s3-2">3.2 手动命令运行</h3>
+<pre><code>cd /d D:\Software\EditingTools\Programming\MyProtects\TrendRadar
+set AI_API_KEY=sk-你的key
+uv run python -m trendradar</code></pre>
+<p class="sub">（<code>uv</code> 在 <code>%LOCALAPPDATA%\uv\uv.exe</code>，已加入用户 PATH）</p>
+
+<h3>常用诊断命令</h3>
+<table>
+<tr><th>命令</th><th>作用</th></tr>
+<tr><td><code>uv run python -m trendradar --doctor</code></td><td>体检：检查配置、AI 参数、存储、通知渠道</td></tr>
+<tr><td><code>uv run python -m trendradar --test-notification</code></td><td>发一条测试消息到所有已配渠道</td></tr>
+<tr><td><code>uv run python -m trendradar --show-schedule</code></td><td>显示当前调度状态</td></tr>
+</table>
+
+<h3 id="s3-3">3.3 Windows 任务计划自动推送</h3>
+<p>项目自带 <code>schedule</code> 调度系统（在 config.yaml 里 <code>schedule.enabled: true</code>），但它只决定"<b>这次运行</b>该不该采集/分析/推送"。要让程序周期性地被唤醒，还需要 Windows 任务计划程序。</p>
+
+<div class="note"><b>通俗理解</b>：TrendRadar 像一位"临时工"，每次来干完活就走。Windows 任务计划程序是"闹钟"，每隔 30 分钟敲一次，叫醒他来干活。</div>
+
+<h4>创建步骤（管理员权限）</h4>
+<div class="step">
+1. 按 <code>Win + S</code>，搜索"任务计划程序"，右键<b>以管理员身份运行</b><br>
+2. 右侧点"创建任务"<br>
+3. <b>常规</b>：名称填 <code>TrendRadar自动推送</code>；勾选"不管用户是否登录都要运行"、"使用最高权限运行"<br>
+4. <b>触发器</b>：新建 → 开始任务"按预定计划" → 每天 → 重复任务间隔"30 分钟"，持续时间"1 天"<br>
+5. <b>操作</b>：新建 → 操作"启动程序" → 程序或脚本填：<br>
+   <span class="path">D:\Software\EditingTools\Programming\MyProtects\TrendRadar\运行TrendRadar.bat</span><br>
+6. <b>条件/设置</b>：可勾选"如果任务运行时间超过"10 分钟则停止；勾选"如果过了计划开始时间，立即启动任务"<br>
+7. 点"确定"，输入 Windows 密码保存
+</div>
+
+<div class="danger">
+<b>权限注意</b>：普通窗口创建任务可能报"拒绝访问"，必须用管理员身份打开任务计划程序。
+</div>
+
+<h2 id="s4">四、GitHub Actions 无服务器部署（备选）</h2>
+
+<h3 id="s4-1">4.1 优点与限制</h3>
+<table>
+<tr><th>优点</th><th>限制</th></tr>
+<tr><td>不用电脑开机，云端自动跑</td><td>需把 API Key、Webhook URL 放到 GitHub Secrets（敏感信息上云）</td></tr>
+<tr><td>Public 仓库不计 Actions 分钟</td><td>Private 仓库消耗账号套餐 Actions 分钟数</td></tr>
+<tr><td>配置好后就自动定时</td><td>必须每 7 天手动"签到"一次，否则自动停止</td></tr>
+</table>
+
+<h3 id="s4-2">4.2 部署步骤</h3>
+<div class="step">
+1. 打开 <a href="https://github.com/sansan0/TrendRadar" target="_blank">官方仓库</a>，点绿色按钮 <b>Use this template</b> → Create a new repository（不要点 Fork）<br>
+2. 仓库名自定义（如 <code>my-trendradar</code>），可见性选 Public 免费或 Private（消耗 Actions 分钟）<br>
+3. 进入仓库 → Settings → Secrets and variables → Actions → New repository secret<br>
+4. 按下面表格逐个添加 Secret（名称必须完全一致）<br>
+5. 进入 Actions 页 → 左侧 <code>Get Hot News</code> → Run workflow → 手动运行测试<br>
+6. 收到飞书消息后，去 <code>.github/workflows/crawler.yml</code> 改 cron 表达式调频率
+</div>
+
+<h4>必需 Secrets 一览</h4>
+<table>
+<tr><th>推送渠道</th><th>Secret Name</th><th>获取方式</th></tr>
+<tr><td>飞书</td><td><code>FEISHU_WEBHOOK_URL</code></td><td>群设置 → 群机器人 → 添加自定义机器人 → 复制 Webhook 地址</td></tr>
+<tr><td>钉钉</td><td><code>DINGTALK_WEBHOOK_URL</code></td><td>群设置 → 智能群助手 → 添加自定义机器人 → 复制 Webhook 地址</td></tr>
+<tr><td>企业微信</td><td><code>WEWORK_WEBHOOK_URL</code></td><td>群设置 → 群机器人 → 添加机器人 → 复制 Webhook 地址</td></tr>
+<tr><td>Telegram</td><td><code>TELEGRAM_BOT_TOKEN</code></td><td>@BotFather 创建机器人获取 Token</td></tr>
+<tr><td>Telegram</td><td><code>TELEGRAM_CHAT_ID</code></td><td>将机器人拉入群组后通过 API 获取</td></tr>
+<tr><td>邮件</td><td><code>EMAIL_FROM</code></td><td>发件人邮箱地址</td></tr>
+<tr><td>邮件</td><td><code>EMAIL_PASSWORD</code></td><td>邮箱授权码（不是登录密码）</td></tr>
+<tr><td>邮件</td><td><code>EMAIL_TO</code></td><td>收件人邮箱地址</td></tr>
+<tr><td>Ntfy</td><td><code>NTFY_TOPIC</code></td><td>自定义 ntfy 主题名称</td></tr>
+<tr><td>Bark</td><td><code>BARK_URL</code></td><td>Bark App 中显示的推送地址（含 key）</td></tr>
+<tr><td>Slack</td><td><code>SLACK_WEBHOOK_URL</code></td><td>Slack App → Incoming Webhooks → 复制 Webhook URL</td></tr>
+<tr><td>自定义 Webhook</td><td><code>GENERIC_WEBHOOK_URL</code></td><td>任意接受 POST 请求的 Webhook 地址</td></tr>
+</table>
+
+<h4>AI 相关 Secrets（可选）</h4>
+<table>
+<tr><th>Secret Name</th><th>说明</th></tr>
+<tr><td><code>AI_API_KEY</code></td><td>你的 AI 服务 API 密钥（DeepSeek/OpenAI 等）</td></tr>
+<tr><td><code>AI_MODEL</code></td><td>模型标识，如 <code>deepseek/deepseek-chat</code></td></tr>
+<tr><td><code>AI_ANALYSIS_ENABLED</code></td><td><code>true</code> 启用 AI 分析，<code>false</code> 关闭</td></tr>
+<tr><td><code>AI_TRANSLATION_ENABLED</code></td><td><code>true</code> 启用 AI 翻译，<code>false</code> 关闭</td></tr>
+</table>
+
+<h4>存储相关 Secrets（GitHub Actions 需要）</h4>
+<p>GitHub Actions 运行环境结束后会被销毁，如需历史记录、增量检测，必须配 S3 兼容存储。推荐 Cloudflare R2（免费额度够用）。</p>
+<table>
+<tr><th>Secret Name</th><th>说明</th></tr>
+<tr><td><code>STORAGE_BACKEND</code></td><td>填 <code>remote</code></td></tr>
+<tr><td><code>S3_BUCKET_NAME</code></td><td>存储桶名称</td></tr>
+<tr><td><code>S3_ACCESS_KEY_ID</code></td><td>R2 API Token 的 Access Key ID</td></tr>
+<tr><td><code>S3_SECRET_ACCESS_KEY</code></td><td>R2 API Token 的 Secret Access Key</td></tr>
+<tr><td><code>S3_ENDPOINT_URL</code></td><td>如 <code>https://[account-id].r2.cloudflarestorage.com</code></td></tr>
+<tr><td><code>S3_REGION</code></td><td>可选，默认 <code>auto</code></td></tr>
+</table>
+
+<h3 id="s4-3">4.3 7 天签到机制</h3>
+<div class="danger">
+<b>这是 GitHub Actions 部署必须了解的规则</b>。<br>
+项目为了防止无人使用的定时任务空转浪费 GitHub 资源，设置了 7 天签到：超过 7 天不手动运行 <code>Check In</code> 工作流，<code>Get Hot News</code> 会被自动禁用，推送停止。
+</div>
+<p><b>签到方法</b>：</p>
+<div class="step">
+1. 进入你的仓库 Actions 页面<br>
+2. 左侧找到 <code>Check In</code><br>
+3. 点 Run workflow → Run workflow<br>
+4. 如果 <code>Get Hot News</code> 已被禁用，回到该工作流点 Enable workflow
+</div>
+<p>如果你不想每 7 天签到，建议改用本地 Windows 任务计划或 Docker。</p>
+
+<h4>修改运行频率</h4>
+<p>编辑仓库里的 <code>.github/workflows/crawler.yml</code>，找到：</p>
+<pre><code>on:
+  schedule:
+    - cron: '0 */2 * * *'  # 每 2 小时运行一次</code></pre>
+<p>改成你想要的 cron 表达式。注意 GitHub Actions 用 <b>UTC 时区</b>，北京时间要减 8 小时。</p>
+<table>
+<tr><th>需求</th><th>cron（UTC）</th><th>北京时间</th></tr>
+<tr><td>每小时</td><td><code>0 * * * *</code></td><td>每小时的第 0 分钟</td></tr>
+<tr><td>每 30 分钟</td><td><code>*/30 * * * *</code></td><td>每小时的 0/30 分</td></tr>
+<tr><td>每天 8:00 和 20:00</td><td><code>0 0,12 * * *</code></td><td>8:00 / 20:00</td></tr>
+<tr><td>工作日每 2 小时</td><td><code>0 0-14/2 * * 1-5</code></td><td>周一到周五 8:00-22:00</td></tr>
+</table>
+
+<h2 id="s5">五、Docker 部署（服务器/NAS 推荐）</h2>
+
+<p>适合有 NAS、VPS 或长期开机的 Linux 服务器。两条命令即可：</p>
+<pre><code>git clone https://github.com/sansan0/TrendRadar.git && cd TrendRadar
+# 编辑 docker/.env 填入密钥
+# 编辑 config/config.yaml 和 config/frequency_words.txt
+cd docker
+docker compose pull trendradar
+docker compose up -d trendradar</code></pre>
+
+<h4>常用环境变量（写入 docker/.env）</h4>
+<table>
+<tr><th>变量</th><th>说明</th></tr>
+<tr><td><code>FEISHU_WEBHOOK_URL</code></td><td>飞书机器人 Webhook 地址</td></tr>
+<tr><td><code>AI_API_KEY</code></td><td>AI 服务 API Key</td></tr>
+<tr><td><code>AI_MODEL</code></td><td>模型标识，如 <code>deepseek/deepseek-chat</code></td></tr>
+<tr><td><code>CRON_SCHEDULE</code></td><td>容器内定时表达式，默认 <code>*/30 * * * *</code></td></tr>
+<tr><td><code>RUN_MODE</code></td><td><code>cron</code> 循环 / <code>once</code> 运行一次</td></tr>
+<tr><td><code>WEBSERVER_PORT</code></td><td>内置报告服务器端口，默认 8080</td></tr>
+</table>
+
+<h4>常用管理命令</h4>
+<table>
+<tr><th>命令</th><th>作用</th></tr>
+<tr><td><code>docker compose ps</code></td><td>查看容器状态</td></tr>
+<tr><td><code>docker logs trendradar</code></td><td>查看日志</td></tr>
+<tr><td><code>docker exec trendradar python -m trendradar --doctor</code></td><td>体检</td></tr>
+<tr><td><code>docker exec trendradar python -m trendradar --test-notification</code></td><td>测试推送</td></tr>
+<tr><td><code>docker exec trendradar python manage.py run</code></td><td>立即执行一次</td></tr>
+<tr><td><code>docker restart trendradar</code></td><td>重启容器</td></tr>
+<tr><td><code>docker compose pull trendradar && docker compose up -d trendradar</code></td><td>更新镜像</td></tr>
+</table>
+
+<h2 id="s6">六、配置文件总览</h2>
+
+<table>
+<tr><th>文件</th><th>管什么</th><th>改动频率</th></tr>
+<tr><td><code>config/config.yaml</code></td><td>抓哪些平台、哪些 RSS、AI 模型、推送渠道、显示板块、报告模式、调度</td><td>较少（一次性设定）</td></tr>
+<tr><td><code>config/frequency_words.txt</code></td><td>关注哪些关键词、屏蔽哪些词（决定"推什么"）</td><td>经常（按兴趣调）</td></tr>
+<tr><td><code>config/timeline.yaml</code></td><td>每天不同时间段该采集/分析/推送吗</td><td>偶尔</td></tr>
+<tr><td><code>config/ai_interests.txt</code></td><td>AI 智能筛选的兴趣描述（自然语言）</td><td>偶尔</td></tr>
+<tr><td><code>config/ai_analysis_prompt.txt</code></td><td>AI 分析报告的风格提示词</td><td>很少</td></tr>
+<tr><td><code>config/ai_translation_prompt.txt</code></td><td>AI 翻译的风格提示词</td><td>很少</td></tr>
+<tr><td><code>config/ai_filter/prompt.txt</code></td><td>AI 筛选的提示词</td><td>很少</td></tr>
+</table>
+
+<h2 id="s7">七、config.yaml 详解</h2>
+
+<h3 id="s7-1">7.1 热榜平台配置</h3>
+<p>配置位置：<code>config/config.yaml</code> 的 <code>platforms</code> 段。</p>
+<pre><code>platforms:
+  enabled: true
+  sources:
+    - id: "toutiao"
+      name: "今日头条"
+      expected_domain: "toutiao.com"
+    - id: "weibo"
+      name: "微博"
+      expected_domain: "weibo.com"
+    # 想去掉某个平台：直接删掉（或注释掉）那 3 行即可</code></pre>
+
+<p><b>字段说明</b>：</p>
+<table>
+<tr><th>字段</th><th>必填</th><th>说明</th></tr>
+<tr><td><code>enabled</code></td><td>是</td><td>总开关，<code>true</code> 启用热榜抓取，<code>false</code> 关闭全部热榜</td></tr>
+<tr><td><code>id</code></td><td>是</td><td>平台标识符，必须来自 NewsNow 支持的列表</td></tr>
+<tr><td><code>name</code></td><td>是</td><td>显示名称，会出现在推送里</td></tr>
+<tr><td><code>expected_domain</code></td><td>否</td><td>域名校验，防链接被篡改，建议保留</td></tr>
+</table>
+
+<p><b>如何找平台 ID</b>：</p>
+<ol>
+  <li>访问 <a href="https://newsnow.busiyi.world/" target="_blank">NewsNow 在线预览</a>，点"更多"查看所有平台</li>
+  <li>或看 NewsNow 源码 <a href="https://github.com/ourongxing/newsnow/tree/main/server/sources" target="_blank">server/sources</a> 目录</li>
+  <li>或看社区整理清单 <a href="https://github.com/sansan0/TrendRadar/issues/95" target="_blank">Issue #95</a></li>
+</ol>
+
+<div class="note"><b>建议</b>：平台数量控制在 10-15 个，太多会信息过载。当前磊哥配置了 43 个平台，其中部分带 <code>disable: cf</code> 的可能会因 Cloudflare 防护抓不到，TrendRadar 会自动跳过失败项。</div>
+
+<h3 id="s7-2">7.2 RSS 订阅配置</h3>
+<p>配置位置：<code>config/config.yaml</code> 的 <code>rss</code> 段。</p>
+<pre><code>rss:
+  enabled: true
+  freshness_filter:
+    enabled: true
+    max_age_days: 1
+  feeds:
+    - id: "hacker-news"
+      name: "Hacker News"
+      url: "https://hnrss.org/frontpage"
+    - id: "my-blog"
+      name: "我的博客"
+      url: "https://example.com/feed.xml"
+      enabled: true
+      max_age_days: 7</code></pre>
+
+<table>
+<tr><th>字段</th><th>必填</th><th>说明</th></tr>
+<tr><td><code>enabled</code></td><td>是</td><td>RSS 总开关</td></tr>
+<tr><td><code>id</code></td><td>是</td><td>唯一标识符，不能重复</td></tr>
+<tr><td><code>name</code></td><td>是</td><td>显示名称</td></tr>
+<tr><td><code>url</code></td><td>是</td><td>RSS/Atom/JSON Feed 地址</td></tr>
+<tr><td><code>enabled</code>（单源）</td><td>否</td><td>默认 <code>true</code>，设为 <code>false</code> 临时禁用</td></tr>
+<tr><td><code>max_age_days</code></td><td>否</td><td>覆盖全局新鲜度过滤，0 表示不过滤</td></tr>
+</table>
+
+<div class="note"><b>新鲜度过滤</b>：只在推送阶段生效，抓取到的所有文章仍会存入数据库。全局默认 <code>max_age_days: 1</code> 表示只推 1 天内的。</div>
+
+<h3 id="s7-3">7.3 筛选方式：关键词 vs AI</h3>
+<pre><code>filter:
+  method: "keyword"   # keyword=按词筛(不耗token) / ai=AI智能判相关(耗token)</code></pre>
+<ul>
+  <li><code>keyword</code>：用 <code>frequency_words.txt</code> 匹配，<b>不调用 AI、不烧钱</b>，规则固定 → 推荐日常用</li>
+  <li><code>ai</code>：让 AI 读标题判你是否感兴趣，更灵活但每次运行消耗 token，兴趣描述写在 <code>config/ai_interests.txt</code></li>
+</ul>
+
+<h3 id="s7-4">7.4 AI 模型配置</h3>
+<pre><code>ai:
+  model: "deepseek/deepseek-chat"   # 模型标识
+  api_key: ""                        # 留空，用环境变量 AI_API_KEY 注入
+  api_base: "https://api.deepseek.com"
+  timeout: 120
+  temperature: 1.0
+  max_tokens: 5000</code></pre>
+
+<p><b>模型标识格式</b>：必须包含斜杠 <code>提供商前缀/模型ID</code>。</p>
+<table>
+<tr><th>想用</th><th>写法</th></tr>
+<tr><td>DeepSeek（当前）</td><td><code>deepseek/deepseek-chat</code></td></tr>
+<tr><td>DeepSeek Flash（更快更便宜）</td><td><code>deepseek/deepseek-v4-flash</code></td></tr>
+<tr><td>OpenAI</td><td><code>openai/gpt-4o</code></td></tr>
+<tr><td>Gemini</td><td><code>gemini/gemini-2.5-flash</code></td></tr>
+<tr><td>本地 Ollama</td><td><code>ollama_chat/模型名</code></td></tr>
+</table>
+
+<div class="note">你的 Key 是 DeepSeek 的。换非 DeepSeek 模型需要对应服务商的 Key。本地 Windows 部署时，Key 通过 <code>运行TrendRadar.bat</code> 里的环境变量注入，不写在 config.yaml 里。</div>
+
+<h3 id="s7-5">7.5 推送渠道配置</h3>
+<p>配置位置：<code>config/config.yaml</code> 的 <code>notification.channels</code> 段。</p>
+<pre><code>notification:
+  enabled: true
+  channels:
+    feishu:
+      webhook_url: "https://open.feishu.cn/.../hook/xxxx"
+    dingtalk:
+      webhook_url: ""
+    wework:
+      webhook_url: ""
+    telegram:
+      bot_token: ""
+      chat_id: ""
+    email:
+      from: ""
+      password: ""
+      to: ""
+    ntfy:
+      topic: ""
+    bark:
+      url: ""
+    slack:
+      webhook_url: ""
+    generic_webhook:
+      url: ""</code></pre>
+
+<p><b>填了 webhook 的渠道才会收到推送；留空的不推</b>。Webhook 是半公开凭证，别发到公开仓库。</p>
+
+<h4>多账号推送</h4>
+<p>同一渠道可向多个接收方推送，Secret/配置值中用英文分号 <code>;</code> 分隔：</p>
+<pre><code>feishu:
+  webhook_url: "https://open.feishu.cn/.../hook/aaa;https://open.feishu.cn/.../hook/bbb"</code></pre>
+
+<h3 id="s7-6">7.6 显示区域与推送模式</h3>
+<h4>显示区域</h4>
+<pre><code>display:
+  region_order:
+    - new_items
+    - hotlist
+    - rss
+    - standalone
+    - ai_analysis
+  regions:
+    hotlist: true        # 热榜筛选结果区
+    rss: true             # RSS 区
+    ai_analysis: true     # AI 分析区
+    new_items: false      # 新增热点区
+    standalone: false     # 独立展示区（不受关键词过滤）</code></pre>
+<p>一个区域要显示，必须同时满足：在 <code>region_order</code> 里 + 在 <code>regions</code> 中设为 <code>true</code>。</p>
+
+<h4>独立展示区 standalone</h4>
+<p>用于将指定平台或 RSS 源的内容完整展示，不受关键词过滤影响：</p>
+<pre><code>display:
+  regions:
+    standalone: true
+  standalone:
+    platforms: ["zhihu", "wallstreetcn-hot"]
+    rss_feeds: []
+    max_items: 20</code></pre>
+
+<h4>推送模式</h4>
+<pre><code>report:
+  mode: "current"   # current=在榜就推 / incremental=只推新增(零重复) / daily=当日汇总</code></pre>
+<table>
+<tr><th>模式</th><th>推送时机</th><th>内容</th><th>适用</th></tr>
+<tr><td><code>daily</code></td><td>定时推送</td><td>当天所有匹配新闻（会重复）</td><td>回顾全天趋势</td></tr>
+<tr><td><code>current</code></td><td>定时推送</td><td>当前榜单中匹配的新闻（在榜就重复）</td><td>追踪当前热门</td></tr>
+<tr><td><code>incremental</code></td><td>仅新增时</td><td>只推第一次出现的新闻（零重复）</td><td>零噪音监控</td></tr>
+</table>
+
+<h4>显示分组方式</h4>
+<pre><code>report:
+  display_mode: "keyword"   # keyword=按关键词分组 / platform=按平台分组</code></pre>
+
+<h3 id="s7-7">7.7 调度系统 schedule</h3>
+<pre><code>schedule:
+  enabled: true
+  preset: "morning_evening"</code></pre>
+<p><code>preset</code> 可选值：参考 <code>config/timeline.yaml</code> 里的预设名称。</p>
+<table>
+<tr><th>预设</th><th>含义</th></tr>
+<tr><td><code>always_on</code></td><td>全天监控，有新增加即推送</td></tr>
+<tr><td><code>morning_evening</code></td><td>早晚汇总，白天推送+晚间汇总（推荐）</td></tr>
+<tr><td><code>office_hours</code></td><td>工作时段三段式推送</td></tr>
+<tr><td><code>night_owl</code></td><td>夜间工作模式</td></tr>
+<tr><td><code>custom</code></td><td>完全自定义</td></tr>
+</table>
+
+<h2 id="s8">八、frequency_words.txt 关键词配置</h2>
+
+<p>这个文件决定"<b>推什么</b>"。分两个区：</p>
+<table>
+<tr><th>区</th><th>作用</th></tr>
+<tr><td><code>[GLOBAL_FILTER]</code></td><td>全局屏蔽词——含这些词的新闻直接丢弃</td></tr>
+<tr><td><code>[WORD_GROUPS]</code></td><td>你想关注的关键词组——命中才进推送</td></tr>
+</table>
+
+<h3>关键词格式速查表</h3>
+<table>
+<tr><th>写法</th><th>含义</th><th>示例</th><th>匹配效果</th></tr>
+<tr><td><code>华为</code></td><td>普通关键词</td><td><code>华为</code></td><td>标题含"华为"即匹配</td></tr>
+<tr><td><code>/正则/</code></td><td>正则表达式</td><td><code>/华为|鸿蒙|任正非/</code></td><td>含三者任一即匹配</td></tr>
+<tr><td><code>词 =&gt; 别名</code></td><td>显示别名</td><td><code>/华为|鸿蒙/ =&gt; 华为</code></td><td>显示为"华为"分组</td></tr>
+<tr><td><code>[组名]</code></td><td>词组名</td><td><code>[华为]</code></td><td>该组统一显示"华为"</td></tr>
+<tr><td><code>+词</code></td><td>必须词</td><td><code>+苹果<br>+发布会</code></td><td>必须同时含"苹果"和"发布会"</td></tr>
+<tr><td><code>!词</code></td><td>排除词</td><td><code>苹果<br>!水果</code></td><td>含"苹果"但排除含"水果"</td></tr>
+<tr><td><code>@数字</code></td><td>该组最多显示几条</td><td><code>@5</code></td><td>该组最多推 5 条</td></tr>
+</table>
+
+<h3>正确写法示例</h3>
+<pre><code>[WORD_GROUPS]
+
+# 最简单：直接写词
+华为
+
+# 一组多个词，并起组名
+[华为]
+华为
+鸿蒙
+任正非
+
+# 用正则一行搞定多个同义词
+/华为|鸿蒙|任正非/ => 华为
+
+# 精确匹配英文单词
+/\bAI\b/i => AI
+
+# 必须同时包含两个词
++苹果
++发布会
+
+# 排除某些场景
+[苹果公司]
+苹果
+!水果
+!果园</code></pre>
+
+<h3>常见错误</h3>
+<table>
+<tr><th>错误</th><th>正确</th></tr>
+<tr><td>写 <code>华为，鸿蒙</code>（逗号隔开）</td><td>每个词<b>单独一行</b></td></tr>
+<tr><td>不加 <code>/</code> 直接写正则 <code>华为|鸿蒙</code></td><td>正则必须包 <code>/.../</code></td></tr>
+<tr><td>把关键词写在 <code>#</code> 后面</td><td><code>#</code> 开头是注释，不生效</td></tr>
+<tr><td>组名写成 <code>(华为)</code></td><td>组名用方括号 <code>[华为]</code></td></tr>
+</table>
+
+<h2 id="s9">九、timeline.yaml 调度系统</h2>
+
+<p>控制"每天不同时间段该做什么"。每个时间段可以独立设置采集、分析、推送、过滤方式、AI 模式。</p>
+
+<h3>预设模板</h3>
+<p>在 <code>config/config.yaml</code> 里选 <code>schedule.preset</code> 即可套用。</p>
+<table>
+<tr><th>预设</th><th>适合场景</th></tr>
+<tr><td><code>always_on</code></td><td>全天候监控，有新增即推送</td></tr>
+<tr><td><code>morning_evening</code></td><td>早晚汇总，适合大多数人</td></tr>
+<tr><td><code>office_hours</code></td><td>工作日三段式推送</td></tr>
+<tr><td><code>night_owl</code></td><td>午后+深夜，适合夜间工作</td></tr>
+<tr><td><code>custom</code></td><td>完全自定义</td></tr>
+</table>
+
+<h3>自定义时间段示例</h3>
+<pre><code>presets:
+  custom:
+    periods:
+      morning:
+        start: "08:00"
+        end: "10:00"
+        collect: true
+        analyze: true
+        push: true
+        filter: keyword
+        analysis: incremental
+      evening:
+        start: "19:00"
+        end: "21:00"
+        collect: true
+        analyze: true
+        push: true
+        filter: ai
+        analysis: daily
+    default:
+      collect: true
+      analyze: false
+      push: false</code></pre>
+
+<p><b>字段说明</b>：</p>
+<table>
+<tr><th>字段</th><th>说明</th></tr>
+<tr><td><code>start/end</code></td><td>时间段起止，24小时制</td></tr>
+<tr><td><code>collect</code></td><td>是否采集数据</td></tr>
+<tr><td><code>analyze</code></td><td>是否调用 AI 分析</td></tr>
+<tr><td><code>push</code></td><td>是否推送</td></tr>
+<tr><td><code>filter</code></td><td><code>keyword</code> 或 <code>ai</code></td></tr>
+<tr><td><code>analysis</code></td><td><code>follow_report</code>/<code>daily</code>/<code>current</code>/<code>incremental</code></td></tr>
+</table>
+
+<h2 id="s10">十、AI 功能详解</h2>
+
+<h3 id="s10-1">10.1 AI 分析推送</h3>
+<p>让 DeepSeek 分析抓取到的热点，生成洞察报告附在推送里。</p>
+<pre><code>ai_analysis:
+  enabled: true
+  language: "Chinese"
+  max_news_for_analysis: 150
+  include_rss: false
+  include_standalone: true
+  include_rank_timeline: true</code></pre>
+
+<p><b>AI 分析的五个板块</b>：</p>
+<ol>
+  <li><b>核心热点与舆情态势</b>：提炼当前最受关注的话题方向</li>
+  <li><b>舆论风向与争议</b>：情绪走向、观点分布、争议焦点</li>
+  <li><b>异动与弱信号</b>：异常波动和早期迹象</li>
+  <li><b>RSS 深度洞察</b>：对 RSS 内容的深度分析</li>
+  <li><b>研判与策略建议</b>：发展走向和应对建议</li>
+</ol>
+
+<p><b>AI 分析模式</b>（可在 timeline.yaml 按时间段设置）：</p>
+<table>
+<tr><th>模式</th><th>分析范围</th></tr>
+<tr><td><code>follow_report</code></td><td>跟随 report.mode 的值</td></tr>
+<tr><td><code>daily</code></td><td>全天数据</td></tr>
+<tr><td><code>current</code></td><td>当前榜单快照</td></tr>
+<tr><td><code>incremental</code></td><td>仅新增条目</td></tr>
+</table>
+
+<h4>AI 开关（本地便利工具）</h4>
+<div class="card">
+<p>不想调用 DeepSeek 时，双击 <code>切换AI开关.bat</code> 即可把 <code>ai_analysis.enabled</code> 和 <code>ai_translation.enabled</code> 同时打开或关闭。</p>
+<ul>
+  <li>关闭后：只抓取热榜 + RSS → 按关键词筛选 → 推送，不消耗 token。</li>
+  <li>再次双击：恢复 AI 分析和翻译。</li>
+  <li>每次切换前会自动备份 <code>config/config.yaml.bak</code>。</li>
+</ul>
+</div>
+
+<h3 id="s10-2">10.2 AI 智能筛选</h3>
+<p>用自然语言描述兴趣，让 AI 自动判断新闻是否相关。</p>
+<pre><code># config/ai_interests.txt
+我对以下领域感兴趣：
+1. AI 技术发展动态，包括大模型、AI Agent、AI 应用落地
+2. 电动汽车市场趋势，特别是特斯拉、比亚迪等头部品牌的动向
+3. 中国重大政策变化，尤其是经济和科技政策
+4. 半导体芯片行业的技术突破和产业链变动
+
+不要标题党，不要营销软文。</code></pre>
+
+<pre><code># config/config.yaml
+filter:
+  method: ai
+
+ai_filter:
+  min_score: 0.7   # 0-1，越高越严格</code></pre>
+
+<table>
+<tr><th>阈值</th><th>效果</th></tr>
+<tr><td>0.3-0.4</td><td>宽松，大部分通过</td></tr>
+<tr><td>0.5-0.6</td><td>适中，推荐大多数用户</td></tr>
+<tr><td>0.7-0.8</td><td>严格，只保留高度相关</td></tr>
+<tr><td>0.9-1.0</td><td>极严格，可能过少</td></tr>
+</table>
+
+<h3 id="s10-3">10.3 AI 多语言翻译</h3>
+<pre><code>ai_translation:
+  enabled: true
+  language: "English"
+  scope:
+    hotlist: false
+    rss: true
+    standalone: true</code></pre>
+<p>与 AI 分析共享模型配置，无需重复配 Key。支持任意语言名称。</p>
+
+<h2 id="s11">十一、MCP 对话分析</h2>
+
+<p>MCP（Model Context Protocol）让 AI 助手能直接查询你本地收集的新闻数据，用对话方式提问。</p>
+
+<h3>能做什么</h3>
+<ul>
+  <li>"今天有什么热门新闻？"</li>
+  <li>"分析一下最近一周关于人工智能的新闻趋势"</li>
+  <li>"对比微博和知乎上关于某话题的讨论热度"</li>
+  <li>"生成本周的新闻总结报告并推送到飞书"</li>
+</ul>
+
+<h3>部署方式</h3>
+<p>MCP Server 以独立 Docker 镜像提供，默认监听 <code>3333</code> 端口：</p>
+<pre><code>docker compose up -d trendradar-mcp</code></pre>
+
+<p>或在 AI 客户端（Cherry Studio/Claude/Cursor）配置 STDIO 模式：</p>
+<pre><code>{
+  "mcpServers": {
+    "trendradar": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "mcp_server", "--transport", "stdio"],
+      "cwd": "D:/Software/EditingTools/Programming/MyProtects/TrendRadar"
+    }
+  }
+}</code></pre>
+
+<h3>HTTP 模式</h3>
+<p>在 Cherry Studio 中添加 MCP Server：</p>
+<ul>
+  <li>类型：<code>streamableHttp</code></li>
+  <li>URL：<code>http://127.0.0.1:3333/mcp</code></li>
+</ul>
+
+<h2 id="s12">十二、存储配置</h2>
+
+<h3>本地存储（当前默认）</h3>
+<p>Docker/本地部署默认使用 SQLite，数据在 <code>output/</code> 目录，无需额外配置。</p>
+
+<h3>远程 S3 存储（GitHub Actions 需要）</h3>
+<p>推荐 Cloudflare R2，免费额度每月 10GB 够用。需要配置的 Secrets：</p>
+<table>
+<tr><th>Secret</th><th>说明</th></tr>
+<tr><td><code>STORAGE_BACKEND</code></td><td>填 <code>remote</code></td></tr>
+<tr><td><code>S3_BUCKET_NAME</code></td><td>存储桶名称</td></tr>
+<tr><td><code>S3_ACCESS_KEY_ID</code></td><td>Access Key ID</td></tr>
+<tr><td><code>S3_SECRET_ACCESS_KEY</code></td><td>Secret Access Key（只显示一次）</td></tr>
+<tr><td><code>S3_ENDPOINT_URL</code></td><td><code>https://[account-id].r2.cloudflarestorage.com</code></td></tr>
+<tr><td><code>S3_REGION</code></td><td>可选，默认 <code>auto</code></td></tr>
+</table>
+
+<h3>数据保留策略</h3>
+<pre><code>storage:
+  local:
+    retention_days: 0     # 0=永久保留
+  remote:
+    retention_days: 0</code></pre>
+
+<h2 id="s13">十三、本地可视化配置编辑器</h2>
+
+<div class="card">
+<p>项目里 <span class="path">editor/config_editor.html</span> 已按你的实际文件重写。双击用浏览器打开即可，<b>打开就能看到你现在的真实配置</b>，完全离线、数据不出浏览器。</p>
+
+<h4>它怎么工作的</h4>
+<ol>
+  <li><b>内容自定义</b>：左上角标签 = 你本地实际要编辑的配置文件（config.yaml / frequency_words.txt / timeline.yaml / ai_interests.txt / ai_analysis_prompt.txt / ai_translation_prompt.txt / ai_filter/prompt.txt）。</li>
+  <li><b>联动调节</b>：左边是代码，右边是可视化面板。你在右边勾选平台、增删 RSS、改 AI 开关、编辑关键词组 —— <b>左边代码会实时跟着变</b>；反过来你直接在左边改代码，右边表单也会刷新。</li>
+  <li><b>复制替换</b>：调好后点左上「📋 复制代码」→ 去 <code>config/</code> 目录把对应文件全选粘贴替换。也可点「⬇️ 下载」存成 .txt 再改名放回去。</li>
+  <li><b>定位与折叠</b>：右边卡片标题 = 左边章节注释，点击标题左边自动跳到对应位置；标题右侧箭头可折叠/展开该区块。</li>
+</ol>
+
+<h4>防改坏保护</h4>
+<ul>
+  <li>这三个文件是<b>彼此独立的配置文件</b>，程序分别读取它们，不存在耦合。</li>
+  <li>编辑器复制前会做 <b>YAML 合法性校验</b>：格式非法会弹红字警告并禁止复制。</li>
+  <li>替换前建议先备份原文件（改名 .bak）。</li>
+</ul>
+</div>
+
+<h2 id="s14">十四、发布网页报告</h2>
+
+<p>每次运行后，TrendRadar 会在 <code>output/html/</code> 生成网页版报告。</p>
+<ul>
+  <li>最新报告：<span class="path">output/html/latest/current.html</span></li>
+  <li>历史报告：按日期存放于 <span class="path">output/html/YYYY-MM-DD/</span></li>
+</ul>
+
+<p>Docker 部署时，容器会启动内置 Web 服务器（默认 <code>http://127.0.0.1:8080</code>），可直接浏览器查看。本地 Windows 可直接双击 HTML 文件打开。</p>
+
+<h2 id="s15">十五、多机器人 / 多实例说明</h2>
+
+<h3>同一个飞书群添加第二个机器人</h3>
+<ul>
+  <li><b>可以</b>：两个机器人用不同 webhook URL，互不影响。</li>
+  <li>推到<b>同一个群</b> → 消息重复。</li>
+  <li>推到<b>不同群</b> → 互不干扰。</li>
+  <li>本地文件不冲突，因为 webhook URL 只是 config.yaml 里的一行字符串。</li>
+</ul>
+
+<h3>在其他 AI Agent（如 Codex）中重新部署到新文件夹</h3>
+<ul>
+  <li><b>不会冲突</b>：新文件夹 = 独立代码、独立 venv、独立配置、独立数据库。</li>
+  <li>注意：如果两个实例用同一个 webhook 推同一个群，会重复；用同一个 DeepSeek Key，费用翻倍。</li>
+</ul>
+
+<h3>本地 + GitHub Actions 同时运行</h3>
+<ul>
+  <li><b>可以共存</b>，但推同一个群会重复。</li>
+  <li>建议：本地推一个群，云端推另一个群；或二选一。</li>
+</ul>
+
+<h2 id="s16">十六、故障排查</h2>
+
+<table>
+<tr><th>现象</th><th>原因/解决</th></tr>
+<tr><td>飞书没收到</td><td>检查 <code>notification.channels.feishu.webhook_url</code> 是否正确；群是否还在；运行 --test-notification 测试</td></tr>
+<tr><td>AI 报错/无分析</td><td>确认 <code>AI_API_KEY</code> 已注入；<code>ai_analysis.enabled: true</code>；模型名是否正确</td></tr>
+<tr><td>推送内容太多</td><td>精简 <code>frequency_words.txt</code>；或改 <code>report.mode: incremental</code></td></tr>
+<tr><td>某些平台抓不到</td><td>该平台接口波动或 Cloudflare 防护，属正常；可暂时注释掉该 source</td></tr>
+<tr><td>GitHub Actions 不自动跑</td><td>检查是否超过 7 天未签到；工作流是否被 Disable</td></tr>
+<tr><td>Windows 任务计划不生效</td><td>确认用管理员创建；触发器是否启用；bat 路径是否正确</td></tr>
+<tr><td>RSS 源 404</td><td>该源地址失效，换源或注释掉</td></tr>
+</table>
+
+<h2 id="s17">十七、记忆要点</h2>
+
+<div class="card">
+<ul>
+  <li>📁 一键运行：双击 <code>运行TrendRadar.bat</code></li>
+  <li>🎯 推什么：改 <code>frequency_words.txt</code>（关键词要按格式，每组一行/空行分隔）</li>
+  <li>⚙️ 抓哪/推哪/用啥模型：改 <code>config.yaml</code></li>
+  <li>⏰ 什么时候推：改 <code>config.yaml</code> 的 <code>schedule.preset</code> 或自定义 <code>timeline.yaml</code></li>
+  <li>🔑 Key 走环境变量，不写进配置文件</li>
+  <li>🤖 原理：广抓取 + 窄筛选，不是热榜全推</li>
+  <li>☁️ 云端备选：GitHub Actions 可实现不用电脑开机自动推，但有 7 天签到机制</li>
+  <li>🐳 服务器备选：Docker 部署适合 NAS/VPS，稳定长期运行</li>
+  <li>🛠️ 可视化编辑：双击 <code>editor/config_editor.html</code> 离线改配置</li>
+</ul>
+</div>
+
+<p class="sub" style="margin-top:40px;text-align:center">— 教程结束 · 有任何段落想让我帮你直接改，告诉我即可 —</p>
+
+</div>
+</body>
+</html>
