@@ -84,9 +84,11 @@ platforms:
       expected_domain: "qq.com"
     - id: "zaobao"
       name: "联合早报"
+      enabled: false                # 当前 newsnow 源 500 报错，先禁用，恢复后可改 true
       expected_domain: "zaobao.com"
     - id: "cankaoxiaoxi"
       name: "参考消息"
+      enabled: false                # 当前 newsnow 源 500 报错，先禁用
       expected_domain: "cankaoxiaoxi.com"
     - id: "sputniknewscn"
       name: "卫星通讯社"
@@ -112,6 +114,7 @@ platforms:
       expected_domain: "douyin.com"
     - id: "kuaishou"
       name: "快手"
+      enabled: false                # 当前 newsnow 源 500 报错，先禁用
       expected_domain: "kuaishou.com"
     - id: "zhihu"
       name: "知乎"
@@ -140,10 +143,12 @@ platforms:
       expected_domain: "mktnews.net"
     - id: "fastbull-express"
       name: "法布财经"
+      enabled: false                # 当前 newsnow 源 500 报错，先禁用
       expected_domain: "fastbull.cn"
     # ═══ 科技/数码 ═══
     - id: "36kr-renqi"
       name: "36氪人气榜"
+      enabled: false                # 当前 newsnow 源 500 报错，先禁用
       expected_domain: "36kr.com"
     - id: "ithome"
       name: "IT之家"
@@ -181,6 +186,7 @@ platforms:
       expected_domain: "v2ex.com"
     - id: "aihot"
       name: "AIHOT"
+      enabled: false                # 当前 newsnow 源 500 报错，先禁用
       expected_domain: "virxact.com"
     # ═══ 体育/游戏/影视 ═══
     - id: "hupu"
