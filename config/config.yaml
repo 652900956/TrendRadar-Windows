@@ -502,7 +502,7 @@ ai:
   # 完整列表: https://docs.litellm.ai/docs/providers
   # 如果你对于看英文文档比较头疼，那么可以点击页面右下角的 【Ask AI】 ,用中文询问怎么配置
 
-  model: "deepseek/deepseek-chat"
+  model: "deepseek/deepseek-v4-flash"
 
   api_key: ""                       # API Key（建议使用环境变量 AI_API_KEY）
   
@@ -540,8 +540,12 @@ ai:
                                     # 示例: ["openai/gpt-4o-mini", "openai/deepseek-ai/DeepSeek-V3"]
 
   # 额外参数（一般无需修改，删掉 # 号即可启用）
-  # extra_params:
-  #   top_p: 1.0
+  # 说明：DeepSeek 已于 2026-07-24 停用 deepseek-chat / deepseek-reasoner，
+  # 统一迁移到 deepseek-v4-flash。V4-Flash 默认开启思考模式(thinking)，
+  # 而原 deepseek-chat 是非思考模式，故这里显式关闭 thinking 以完全等价旧行为。
+  extra_params:
+    thinking:
+      type: disabled
   #   presence_penalty: 0.0
   #   stop: ["END"]
 
